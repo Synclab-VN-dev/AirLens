@@ -46,7 +46,10 @@ object StreamConfigStore {
             height = prefs.getInt(KEY_HEIGHT, defaults.height).coerceIn(MIN_HEIGHT, MAX_HEIGHT),
             fps = prefs.getInt(KEY_FPS, defaults.fps).coerceIn(MIN_FPS, MAX_FPS),
             bitrate = prefs.getInt(KEY_BITRATE_MBPS, defaults.bitrateMbps)
-                .coerceIn(StreamConfig.MIN_BITRATE_MBPS, StreamConfig.MAX_BITRATE_MBPS) * 1_000_000,
+                .coerceIn(
+                    StreamConfig.MIN_CONFIGURABLE_BITRATE_MBPS,
+                    StreamConfig.MAX_CONFIGURABLE_BITRATE_MBPS,
+                ) * 1_000_000,
             keyframeIntervalSeconds = prefs.getInt(KEY_KEYFRAME_INTERVAL, defaults.keyframeIntervalSeconds)
                 .coerceIn(MIN_KEYFRAME_INTERVAL, MAX_KEYFRAME_INTERVAL),
             latencyMs = prefs.getInt(KEY_LATENCY, defaults.latencyMs)
