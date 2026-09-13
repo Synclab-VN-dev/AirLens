@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
+import dev.openstream.app.stream.StreamConfig
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
@@ -43,9 +44,9 @@ class MediaCodecVideoEncoder(
     private val fps: Int,
     private val bitrate: Int,
     private val keyframeIntervalSeconds: Int,
-    private val bitrateMode: VideoBitrateMode = VideoBitrateMode.Cbr,
-    private val avcProfilePreference: AvcProfilePreference = AvcProfilePreference.Auto,
-    private val bFramesEnabled: Boolean = false,
+    private val bitrateMode: VideoBitrateMode = StreamConfig.Default1080p30.videoBitrateMode,
+    private val avcProfilePreference: AvcProfilePreference = StreamConfig.Default1080p30.avcProfilePreference,
+    private val bFramesEnabled: Boolean = StreamConfig.Default1080p30.bFramesEnabled,
     private val onEncodedAccessUnit: (EncodedAccessUnit) -> Unit,
 ) {
     private var mimeType = preference.advertisedMimeType()
