@@ -27,8 +27,14 @@ data class StreamConfig(
         get() = audioBitrate / 1_000
 
     companion object {
-        const val MIN_BITRATE_MBPS = 1
-        const val MAX_BITRATE_MBPS = 200
+        // Giữ contract V1.0.1 cho đường điều khiển OBS cũ.
+        const val MIN_BITRATE_MBPS = 8
+        const val MAX_BITRATE_MBPS = 50
+
+        // Giao diện phát nâng cao không bị khóa ở trần 50 Mbps; giá trị thực tế
+        // vẫn phải được StreamingCapabilityResolver xác nhận với MediaCodec.
+        const val MIN_CONFIGURABLE_BITRATE_MBPS = 1
+        const val MAX_CONFIGURABLE_BITRATE_MBPS = 200
 
         private val baseline1080p30 = StreamConfig(
             width = 1920,
