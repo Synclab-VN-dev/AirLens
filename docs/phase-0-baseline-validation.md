@@ -19,3 +19,5 @@ Tài liệu này ghi nhận nền dùng cho kế hoạch tại issue #1 và tiê
 ## Kết quả
 
 GitHub Actions của fork đã được bật. Commit này dùng để kích hoạt lại các quy trình kiểm thử trên pull request sau khi bật Actions.
+
+Đang chờ GitHub ghi nhận lần chạy kiểm thử của fork.
