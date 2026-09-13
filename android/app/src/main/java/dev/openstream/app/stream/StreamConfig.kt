@@ -25,9 +25,7 @@ data class StreamConfig(
         const val MIN_BITRATE_MBPS = 8
         const val MAX_BITRATE_MBPS = 50
 
-        // Giữ nguyên cấu hình ổn định của upstream làm mặc định. Các giai đoạn
-        // tiếp theo sẽ lọc các lựa chọn khác theo khả năng thật của camera và codec.
-        val Default1080p30 = StreamConfig(
+        private val baseline1080p30 = StreamConfig(
             width = 1920,
             height = 1080,
             fps = 30,
@@ -40,6 +38,24 @@ data class StreamConfig(
             audioChannelCount = 1,
             audioBitrate = 128_000,
         )
+
+        @Volatile
+        private var runtimeConfig: StreamConfig? = null
+
+        /** Cấu hình nền cố định để đọc giá trị mặc định khi kho cấu hình chưa có dữ liệu. */
+        val Baseline1080p30: StreamConfig
+            get() = baseline1080p30
+
+        /**
+         * Giữ API cũ cho MainActivity nhưng không còn khóa luồng vào 1080p30.
+         * OpenStreamApplication nạp cấu hình đã lưu trước khi Activity được tạo.
+         */
+        val Default1080p30: StreamConfig
+            get() = runtimeConfig ?: baseline1080p30
+
+        fun installRuntimeConfig(config: StreamConfig) {
+            runtimeConfig = config
+        }
 
         val Fallback720p30 = StreamConfig(
             width = 1280,
