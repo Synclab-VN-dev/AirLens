@@ -27,8 +27,6 @@ object StreamConfigStore {
     const val MAX_HEIGHT = 8192
     const val MIN_FPS = 1
     const val MAX_FPS = 240
-    const val MIN_CONFIG_BITRATE_MBPS = 1
-    const val MAX_CONFIG_BITRATE_MBPS = 200
     const val MIN_KEYFRAME_INTERVAL = 1
     const val MAX_KEYFRAME_INTERVAL = 10
     const val MIN_LATENCY_MS = 20
@@ -41,14 +39,14 @@ object StreamConfigStore {
     const val MAX_AUDIO_BITRATE_KBPS = 512
 
     fun load(context: Context): StreamConfig {
-        val defaults = StreamConfig.Default1080p30
+        val defaults = StreamConfig.Baseline1080p30
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return defaults.copy(
             width = prefs.getInt(KEY_WIDTH, defaults.width).coerceIn(MIN_WIDTH, MAX_WIDTH),
             height = prefs.getInt(KEY_HEIGHT, defaults.height).coerceIn(MIN_HEIGHT, MAX_HEIGHT),
             fps = prefs.getInt(KEY_FPS, defaults.fps).coerceIn(MIN_FPS, MAX_FPS),
             bitrate = prefs.getInt(KEY_BITRATE_MBPS, defaults.bitrateMbps)
-                .coerceIn(MIN_CONFIG_BITRATE_MBPS, MAX_CONFIG_BITRATE_MBPS) * 1_000_000,
+                .coerceIn(StreamConfig.MIN_BITRATE_MBPS, StreamConfig.MAX_BITRATE_MBPS) * 1_000_000,
             keyframeIntervalSeconds = prefs.getInt(
                 KEY_KEYFRAME_INTERVAL,
                 defaults.keyframeIntervalSeconds,
