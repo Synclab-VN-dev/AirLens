@@ -2,6 +2,7 @@
 
 ## Completed since last review
 
+- Autonomous maintenance is paused at the user's request; this branch is prepared for immediate integration into `main` after the latest validation pass.
 - Bound Android camera mutation controls (`/zoom`, `/torch`, `/lens`, `/identify`) and `/release` to the peer that owns the active reservation; cross-peer takeover and unexpected unbound reservation state fail closed.
 - Removed permissive browser CORS/preflight access from the native control port and require `Content-Type: application/json` for mutating routes.
 - Added a production-like FFmpeg/libSRT caller fault-injection probe and wired OBS to a 4.5 s SRT I/O timeout plus 2 s connect timeout.
