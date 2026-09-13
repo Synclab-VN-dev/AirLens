@@ -39,7 +39,9 @@ class CameraCapabilityProbe(context: Context) {
                 ?: return@mapNotNull null
             val sizes = runCatching { map.getOutputSizes(MediaCodec::class.java)?.toList().orEmpty() }
                 .getOrDefault(emptyList())
-            val aeRanges = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+            val aeRanges: List<Range<Int>> = chars
+                .get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+                ?.map { range -> Range(range.lower, range.upper) }
                 .orEmpty()
             val modes = sizes
                 .flatMap { size -> modesForSize(lens, cameraId, size, aeRanges, map) }
@@ -56,7 +58,7 @@ class CameraCapabilityProbe(context: Context) {
         lens: CameraLens,
         cameraId: String,
         size: Size,
-        aeRanges: Array<Range<Int>>,
+        aeRanges: List<Range<Int>>,
         map: android.hardware.camera2.params.StreamConfigurationMap,
     ): List<CameraStreamMode> {
         val minDurationNs = runCatching {
