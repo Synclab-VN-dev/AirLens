@@ -23,7 +23,8 @@ def _block_after(source: str, marker: str) -> str:
 def test_optional_video_tuning_has_core_profile_fallback():
     configure = _block_after(SOURCE, "private fun createConfiguredEncoder")
     assert "for (applyOptionalTuning in listOf(true, false))" in configure
-    assert "createVideoFormat(applyOptionalTuning)" in configure
+    assert "createVideoFormat(" in configure
+    assert "applyOptionalTuning" in configure
     assert "runCatching { encoder.release() }" in configure
     assert "if (!applyOptionalTuning)" in configure
     assert "throw error" in configure
@@ -44,6 +45,19 @@ def test_optional_video_tuning_has_core_profile_fallback():
         "MediaFormat.KEY_BIT_RATE",
         "MediaFormat.KEY_FRAME_RATE",
         "MediaFormat.KEY_I_FRAME_INTERVAL",
-        "MediaFormat.KEY_BITRATE_MODE",
     ):
         assert required_key in video_format
+
+    # SystemDefault intentionally omits KEY_BITRATE_MODE. CBR/VBR still map to MediaCodec.
+    assert "MediaFormat.KEY_BITRATE_MODE" in video_format
+    assert "mediaCodecModeOrNull" in SOURCE
+
+
+def test_4k_avc_profiles_and_bframes_are_capability_gated_and_observable():
+    assert "AVCProfileHigh" in SOURCE
+    assert "MediaFormat.KEY_PROFILE" in SOURCE
+    assert "actualOutputProfile" in SOURCE
+    assert "onOutputFormatChanged" in SOURCE
+    assert "VideoBitrateMode" in SOURCE
+    assert "AvcProfilePreference" in SOURCE
+    assert "KEY_MAX_B_FRAMES" in SOURCE
