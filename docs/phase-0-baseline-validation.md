@@ -18,4 +18,4 @@ Tài liệu này ghi nhận nền dùng cho kế hoạch tại issue #1 và tiê
 
 ## Kết quả
 
-Kết quả GitHub Actions và mã commit xác nhận sẽ được ghi trong bình luận của issue #2 sau khi các quy trình hoàn tất.
+GitHub Actions của fork đã được bật. Commit này dùng để kích hoạt lại các quy trình kiểm thử trên pull request sau khi bật Actions.
