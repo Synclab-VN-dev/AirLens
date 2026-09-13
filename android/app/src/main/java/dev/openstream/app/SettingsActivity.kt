@@ -2,9 +2,9 @@ package dev.openstream.app
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowInsets
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
@@ -89,54 +89,14 @@ class SettingsActivity : Activity() {
         clearValidationErrors()
 
         val current = StreamConfigStore.load(this)
-        val width = validatedNumber(
-            inputWidth,
-            current.width,
-            StreamConfigStore.MIN_WIDTH..StreamConfigStore.MAX_WIDTH,
-            "Chiều rộng",
-        ) ?: return
-        val height = validatedNumber(
-            inputHeight,
-            current.height,
-            StreamConfigStore.MIN_HEIGHT..StreamConfigStore.MAX_HEIGHT,
-            "Chiều cao",
-        ) ?: return
-        val fps = validatedNumber(
-            inputFps,
-            current.fps,
-            StreamConfigStore.MIN_FPS..StreamConfigStore.MAX_FPS,
-            "Số hình/giây",
-        ) ?: return
-        val bitrateMbps = validatedNumber(
-            inputBitrateMbps,
-            current.bitrateMbps,
-            StreamConfig.MIN_BITRATE_MBPS..StreamConfig.MAX_BITRATE_MBPS,
-            "Tốc độ bit",
-        ) ?: return
-        val keyframeInterval = validatedNumber(
-            inputKeyframeInterval,
-            current.keyframeIntervalSeconds,
-            StreamConfigStore.MIN_KEYFRAME_INTERVAL..StreamConfigStore.MAX_KEYFRAME_INTERVAL,
-            "Chu kỳ khung hình khóa",
-        ) ?: return
-        val audioSampleRate = validatedNumber(
-            inputAudioSampleRate,
-            current.audioSampleRate,
-            StreamConfigStore.MIN_AUDIO_SAMPLE_RATE..StreamConfigStore.MAX_AUDIO_SAMPLE_RATE,
-            "Tần số lấy mẫu âm thanh",
-        ) ?: return
-        val audioChannels = validatedNumber(
-            inputAudioChannels,
-            current.audioChannelCount,
-            StreamConfigStore.MIN_AUDIO_CHANNELS..StreamConfigStore.MAX_AUDIO_CHANNELS,
-            "Số kênh âm thanh",
-        ) ?: return
-        val audioBitrateKbps = validatedNumber(
-            inputAudioBitrateKbps,
-            current.audioBitrateKbps,
-            StreamConfigStore.MIN_AUDIO_BITRATE_KBPS..StreamConfigStore.MAX_AUDIO_BITRATE_KBPS,
-            "Tốc độ bit âm thanh",
-        ) ?: return
+        val width = validatedNumber(inputWidth, current.width, StreamConfigStore.MIN_WIDTH..StreamConfigStore.MAX_WIDTH, "Chiều rộng") ?: return
+        val height = validatedNumber(inputHeight, current.height, StreamConfigStore.MIN_HEIGHT..StreamConfigStore.MAX_HEIGHT, "Chiều cao") ?: return
+        val fps = validatedNumber(inputFps, current.fps, StreamConfigStore.MIN_FPS..StreamConfigStore.MAX_FPS, "Số hình/giây") ?: return
+        val bitrateMbps = validatedNumber(inputBitrateMbps, current.bitrateMbps, StreamConfig.MIN_BITRATE_MBPS..StreamConfig.MAX_BITRATE_MBPS, "Tốc độ bit") ?: return
+        val keyframeInterval = validatedNumber(inputKeyframeInterval, current.keyframeIntervalSeconds, StreamConfigStore.MIN_KEYFRAME_INTERVAL..StreamConfigStore.MAX_KEYFRAME_INTERVAL, "Chu kỳ khung hình khóa") ?: return
+        val audioSampleRate = validatedNumber(inputAudioSampleRate, current.audioSampleRate, StreamConfigStore.MIN_AUDIO_SAMPLE_RATE..StreamConfigStore.MAX_AUDIO_SAMPLE_RATE, "Tần số lấy mẫu âm thanh") ?: return
+        val audioChannels = validatedNumber(inputAudioChannels, current.audioChannelCount, StreamConfigStore.MIN_AUDIO_CHANNELS..StreamConfigStore.MAX_AUDIO_CHANNELS, "Số kênh âm thanh") ?: return
+        val audioBitrateKbps = validatedNumber(inputAudioBitrateKbps, current.audioBitrateKbps, StreamConfigStore.MIN_AUDIO_BITRATE_KBPS..StreamConfigStore.MAX_AUDIO_BITRATE_KBPS, "Tốc độ bit âm thanh") ?: return
 
         val host = inputObsHost.text.toString().trim()
         if (!SettingsValidator.isValidHost(host, required = connectAfterSave)) {
@@ -144,24 +104,9 @@ class SettingsActivity : Activity() {
             inputObsHost.requestFocus()
             return
         }
-        val port = validatedNumber(
-            input = inputObsPort,
-            defaultValue = ConnectionTarget.DEFAULT_PORT,
-            validRange = 1..65535,
-            label = "Cổng OBS",
-        ) ?: return
-        val latency = validatedNumber(
-            input = inputLatency,
-            defaultValue = current.latencyMs,
-            validRange = StreamConfigStore.MIN_LATENCY_MS..StreamConfigStore.MAX_LATENCY_MS,
-            label = "Độ trễ",
-        ) ?: return
-        val listenPort = validatedNumber(
-            input = inputListeningPort,
-            defaultValue = ConnectionTarget.DEFAULT_PORT,
-            validRange = 1024..65535,
-            label = "Cổng lắng nghe",
-        ) ?: return
+        val port = validatedNumber(inputObsPort, ConnectionTarget.DEFAULT_PORT, 1..65535, "Cổng OBS") ?: return
+        val latency = validatedNumber(inputLatency, current.latencyMs, StreamConfigStore.MIN_LATENCY_MS..StreamConfigStore.MAX_LATENCY_MS, "Độ trễ") ?: return
+        val listenPort = validatedNumber(inputListeningPort, ConnectionTarget.DEFAULT_PORT, 1024..65535, "Cổng lắng nghe") ?: return
 
         val config = current.copy(
             width = width,
@@ -176,6 +121,7 @@ class SettingsActivity : Activity() {
             audioBitrate = audioBitrateKbps * 1_000,
         )
         StreamConfigStore.save(this, config)
+        StreamConfig.installRuntimeConfig(config)
 
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
             .putString(KEY_OBS_HOST, host)
@@ -184,19 +130,28 @@ class SettingsActivity : Activity() {
             .apply()
 
         Toast.makeText(this, "Đã lưu cấu hình", Toast.LENGTH_SHORT).show()
-        setResult(
-            RESULT_OK,
-            Intent().putExtra(EXTRA_CONNECT_AFTER_SAVE, connectAfterSave),
-        )
+        restartMainActivity(connectAfterSave, host, port, latency)
+    }
+
+    private fun restartMainActivity(connectAfterSave: Boolean, host: String, port: Int, latency: Int) {
+        val restart = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (connectAfterSave) {
+                data = Uri.Builder()
+                    .scheme("openstream")
+                    .authority("connect")
+                    .appendQueryParameter("host", host)
+                    .appendQueryParameter("port", port.toString())
+                    .appendQueryParameter("latency", latency.toString())
+                    .appendQueryParameter("name", ConnectionTarget.DEFAULT_NAME)
+                    .build()
+            }
+        }
+        startActivity(restart)
         finish()
     }
 
-    private fun validatedNumber(
-        input: EditText,
-        defaultValue: Int,
-        validRange: IntRange,
-        label: String,
-    ): Int? {
+    private fun validatedNumber(input: EditText, defaultValue: Int, validRange: IntRange, label: String): Int? {
         val raw = input.text.toString().trim()
         if (raw.isBlank()) return defaultValue
         val value = SettingsValidator.parseNumber(raw, defaultValue, validRange)
@@ -228,9 +183,7 @@ class SettingsActivity : Activity() {
     private fun showVersionInfo() {
         runCatching {
             val info = packageManager.getPackageInfo(packageName, 0)
-            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.longVersionCode
-            } else {
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else {
                 @Suppress("DEPRECATION")
                 info.versionCode.toLong()
             }
