@@ -231,7 +231,12 @@ class SettingsActivity : Activity() {
         val width = validatedNumber(inputWidth, current.width, StreamConfigStore.MIN_WIDTH..StreamConfigStore.MAX_WIDTH, "Chiều rộng") ?: return
         val height = validatedNumber(inputHeight, current.height, StreamConfigStore.MIN_HEIGHT..StreamConfigStore.MAX_HEIGHT, "Chiều cao") ?: return
         val fps = validatedNumber(inputFps, current.fps, StreamConfigStore.MIN_FPS..StreamConfigStore.MAX_FPS, "Số hình/giây") ?: return
-        val bitrateMbps = validatedNumber(inputBitrateMbps, current.bitrateMbps, StreamConfig.MIN_BITRATE_MBPS..StreamConfig.MAX_BITRATE_MBPS, "Tốc độ bit") ?: return
+        val bitrateMbps = validatedNumber(
+            inputBitrateMbps,
+            current.bitrateMbps,
+            StreamConfig.MIN_CONFIGURABLE_BITRATE_MBPS..StreamConfig.MAX_CONFIGURABLE_BITRATE_MBPS,
+            "Tốc độ bit",
+        ) ?: return
         val keyframeInterval = validatedNumber(inputKeyframeInterval, current.keyframeIntervalSeconds, StreamConfigStore.MIN_KEYFRAME_INTERVAL..StreamConfigStore.MAX_KEYFRAME_INTERVAL, "Chu kỳ khung hình khóa") ?: return
         val audioSampleRate = validatedNumber(inputAudioSampleRate, current.audioSampleRate, StreamConfigStore.MIN_AUDIO_SAMPLE_RATE..StreamConfigStore.MAX_AUDIO_SAMPLE_RATE, "Tần số lấy mẫu âm thanh") ?: return
         val audioChannels = validatedNumber(inputAudioChannels, current.audioChannelCount, StreamConfigStore.MIN_AUDIO_CHANNELS..StreamConfigStore.MAX_AUDIO_CHANNELS, "Số kênh âm thanh") ?: return
