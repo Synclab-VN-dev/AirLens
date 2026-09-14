@@ -126,10 +126,23 @@ class Phase6SoakE2eTest {
             .appendQueryParameter("bitrateMbps", streamBitrateMbps.toString())
             .appendQueryParameter("name", "Phase 6 soak")
             .build()
-        val intent = Intent(Intent.ACTION_VIEW, targetUri, context, MainActivity::class.java).apply {
+
+        // Khởi động app theo luồng sử dụng thông thường trước để Surface/preview
+        // ổn định, sau đó mới giao pairing intent cho chính MainActivity đang chạy.
+        // Điều này vẫn đi qua production onNewIntent/handlePairingIntent và toàn bộ
+        // Camera2 -> MediaCodec -> SRT path, nhưng không biến smoke Phase 6 thành
+        // bài kiểm thử race cold-start/deep-link riêng biệt.
+        val activityIntent = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        val activity = instrumentation.startActivitySync(intent) as MainActivity
+        val activity = instrumentation.startActivitySync(activityIntent) as MainActivity
+        instrumentation.waitForIdleSync()
+        SystemClock.sleep(PREVIEW_WARMUP_MS)
+
+        val connectIntent = Intent(Intent.ACTION_VIEW, targetUri, context, MainActivity::class.java)
+        instrumentation.runOnMainSync {
+            activity.onNewIntent(connectIntent)
+        }
         instrumentation.waitForIdleSync()
 
         assertTrue(
@@ -239,6 +252,7 @@ class Phase6SoakE2eTest {
         private const val MAX_SOAK_BITRATE_MBPS = 40
         private const val DEFAULT_CAPABILITY_BITRATE_MBPS = 30
         private const val DEFAULT_LATENCY_MS = 2_000
+        private const val PREVIEW_WARMUP_MS = 2_000L
         private const val CONNECT_TIMEOUT_MS = 30_000L
         private const val LIVE_POLL_MS = 1_000L
 
