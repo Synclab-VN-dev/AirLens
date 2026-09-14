@@ -1,10 +1,13 @@
 name: Phase 6 Soak E2E
 
 on:
+  push:
+    branches:
+      - phase-6-stability-telemetry
   workflow_dispatch:
     inputs:
       adb_serial:
-        description: "ADB serial override; để trống nếu runner chỉ có đúng 1 device đã kết nối"
+        description: "ADB serial override; để trống để dùng OPENSTREAM_ANDROID_ADB_ENDPOINT hoặc đúng 1 device đã kết nối"
         required: false
         default: ""
         type: string
@@ -14,12 +17,12 @@ on:
         default: ""
         type: string
       duration_seconds:
-        description: "Thời lượng soak, 60-3600 giây"
+        description: "Thời lượng soak thủ công, 60-3600 giây"
         required: true
         default: "1800"
         type: string
       stream_bitrate_mbps:
-        description: "Bitrate mục tiêu Phase 6, 20-40 Mbps"
+        description: "Bitrate; 20-40 Mbps chỉ được tính performance gate khi chạy trên LAN/Wi-Fi phù hợp"
         required: true
         default: "30"
         type: string
@@ -31,7 +34,7 @@ on:
       latency_ms:
         description: "SRT latency"
         required: true
-        default: "2000"
+        default: "120"
         type: string
       receiver_port:
         description: "Cổng SRT listener trên runner"
@@ -94,10 +97,19 @@ jobs:
           if-no-files-found: error
 
   device-soak:
-    name: 4K30 + mic long-running soak
+    name: 4K30 + mic functional smoke / manual soak
     needs: build-android
     runs-on: [self-hosted, linux, openstream-device-lab]
     timeout-minutes: 75
+    env:
+      ADB_SERIAL_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.adb_serial || vars.OPENSTREAM_ANDROID_ADB_ENDPOINT }}
+      RECEIVER_HOST_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_host || '' }}
+      DURATION_SECONDS: ${{ github.event_name == 'workflow_dispatch' && inputs.duration_seconds || '60' }}
+      STREAM_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.stream_bitrate_mbps || '8' }}
+      CAPABILITY_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.capability_bitrate_mbps || '30' }}
+      LATENCY_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.latency_ms || '120' }}
+      RECEIVER_PORT: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_port || '19060' }}
+      SAMPLE_PERIOD_SECONDS: ${{ github.event_name == 'workflow_dispatch' && '60' || '15' }}
 
     steps:
       - name: Check out repository
@@ -111,7 +123,7 @@ jobs:
           name: phase6-device-apks
           path: dist
 
-      - name: Resolve device and receiver
+      - name: Resolve device and Tailscale receiver
         id: lab
         shell: bash
         run: |
@@ -120,21 +132,26 @@ jobs:
           command -v ffmpeg
           command -v ffprobe
           command -v python3
+          command -v tailscale
 
-          adb_serial='${{ inputs.adb_serial }}'
-          if [[ -z "$adb_serial" ]]; then
+          adb_serial="$ADB_SERIAL_CONFIG"
+          if [[ -n "$adb_serial" ]]; then
+            adb connect "$adb_serial" || true
+            adb -s "$adb_serial" wait-for-device
+            state="$(adb -s "$adb_serial" get-state)"
+            [[ "$state" == "device" ]]
+          else
             mapfile -t devices < <(adb devices | awk 'NR>1 && $2=="device" {print $1}')
             if [[ ${#devices[@]} -ne 1 ]]; then
-              echo "Cần đúng 1 ADB device khi adb_serial để trống; hiện có ${#devices[@]}" >&2
+              echo "Cần đúng 1 ADB device khi không có adb_serial; hiện có ${#devices[@]}" >&2
               printf '%s\n' "${devices[@]}" >&2
               exit 1
             fi
             adb_serial="${devices[0]}"
           fi
 
-          receiver_host='${{ inputs.receiver_host }}'
+          receiver_host="$RECEIVER_HOST_CONFIG"
           if [[ -z "$receiver_host" ]]; then
-            command -v tailscale
             receiver_host="$(tailscale ip -4 | head -n1)"
           fi
           [[ -n "$receiver_host" ]]
@@ -143,13 +160,14 @@ jobs:
           echo "receiver_host=$receiver_host" >> "$GITHUB_OUTPUT"
           echo "ADB target: $adb_serial"
           echo "Receiver host: $receiver_host"
+          echo "Mode: ${{ github.event_name == 'push' && 'Tailscale functional smoke (not performance acceptance)' || 'manual soak' }}"
 
       - name: Validate soak harness
         run: |
           python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py
           ffmpeg -hide_banner -protocols | grep -w srt
 
-      - name: Run Phase 6 soak
+      - name: Run Phase 6 functional smoke / soak
         shell: bash
         run: |
           set -euo pipefail
@@ -158,16 +176,30 @@ jobs:
             --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
             --app-apk dist/openstream-android.apk \
             --test-apk dist/openstream-android-test.apk \
-            --receiver-port '${{ inputs.receiver_port }}' \
-            --duration-seconds '${{ inputs.duration_seconds }}' \
-            --stream-bitrate-mbps '${{ inputs.stream_bitrate_mbps }}' \
-            --capability-bitrate-mbps '${{ inputs.capability_bitrate_mbps }}' \
-            --latency-ms '${{ inputs.latency_ms }}' \
+            --receiver-port "$RECEIVER_PORT" \
+            --duration-seconds "$DURATION_SECONDS" \
+            --stream-bitrate-mbps "$STREAM_BITRATE_MBPS" \
+            --capability-bitrate-mbps "$CAPABILITY_BITRATE_MBPS" \
+            --latency-ms "$LATENCY_MS" \
+            --sample-period-seconds "$SAMPLE_PERIOD_SECONDS" \
             --evidence-dir build/phase6-soak-e2e
 
       - name: Stop test app
         if: always()
         run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+
+      - name: Record transport context
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build/phase6-soak-e2e
+          {
+            echo "event=${{ github.event_name }}"
+            echo "receiver_host_source=$([[ -n \"$RECEIVER_HOST_CONFIG\" ]] && echo override || echo tailscale)"
+            echo "performance_acceptance=false"
+            echo "note=Push runs are Tailscale functional evidence only. Manual 20-40 Mbps LAN/Wi-Fi evidence is required before closing Phase 6."
+          } > build/phase6-soak-e2e/transport-context.txt
+          tailscale status > build/phase6-soak-e2e/tailscale-status.txt 2>&1 || true
 
       - name: Upload Phase 6 soak evidence
         if: always()
