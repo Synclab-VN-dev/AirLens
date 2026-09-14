@@ -60,6 +60,14 @@ jobs:
       - name: Install Android build packages
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
+      - name: Verify bundled SRT revision used by device gate
+        run: |
+          set -euo pipefail
+          grep -q '#define SRT_VERSION_MAJOR 1' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          grep -q '#define SRT_VERSION_MINOR 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
+
       - name: Compute Android version metadata
         id: version
         run: echo "code=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
