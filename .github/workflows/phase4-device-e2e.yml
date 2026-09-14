@@ -43,20 +43,19 @@ jobs:
     name: Build app + instrumentation APKs
     runs-on: ubuntu-latest
     steps:
-      - name: Check out PR integration result
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: refs/pull/14/merge
-          fetch-depth: 2
 
-      - name: Verify Phase 4 integration baseline
+      - name: Verify synced Phase 3 baseline
         run: |
           set -euo pipefail
-          echo "Integration HEAD: $(git rev-parse HEAD)"
-          echo "Parents: $(git show -s --format='%P' HEAD)"
-          test "$(git show -s --format='%P' HEAD | wc -w)" -ge 2
-          git log -1 --oneline
+          grep -q '#define SRT_VERSION_MAJOR 1' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          grep -q '#define SRT_VERSION_MINOR 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
+          grep -q 'callerModeActive' android/app/src/main/java/dev/openstream/app/MainActivity.kt
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -69,14 +68,6 @@ jobs:
 
       - name: Install Android build packages
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
-
-      - name: Verify bundled SRT revision used by device gate
-        run: |
-          set -euo pipefail
-          grep -q '#define SRT_VERSION_MAJOR 1' android/app/src/main/cpp/third_party/srt/include/srt/version.h
-          grep -q '#define SRT_VERSION_MINOR 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
-          grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
-          test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
 
       - name: Compute Android version metadata
         id: version
@@ -116,19 +107,17 @@ jobs:
       DURATION_SECONDS: ${{ inputs.duration_seconds || '15' }}
       LATENCY_MS: ${{ inputs.latency_ms || '2000' }}
     steps:
-      - name: Check out PR integration result
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: refs/pull/14/merge
-          fetch-depth: 2
 
-      - name: Verify Phase 4 integration baseline
+      - name: Verify synced Phase 3 baseline
         run: |
           set -euo pipefail
-          echo "Integration HEAD: $(git rev-parse HEAD)"
-          echo "Parents: $(git show -s --format='%P' HEAD)"
-          test "$(git show -s --format='%P' HEAD | wc -w)" -ge 2
+          grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
+          test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
+          grep -q 'callerModeActive' android/app/src/main/java/dev/openstream/app/MainActivity.kt
 
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
