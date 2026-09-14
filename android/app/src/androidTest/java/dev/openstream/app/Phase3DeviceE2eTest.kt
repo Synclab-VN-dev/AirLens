@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.view.View
+import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.openstream.app.camera.CameraLens
@@ -15,7 +16,6 @@ import dev.openstream.app.stream.StreamConfig
 import dev.openstream.app.stream.StreamConfigStore
 import dev.openstream.app.stream.StreamingCapabilityResolver
 import org.json.JSONObject
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -148,12 +148,17 @@ class Phase3DeviceE2eTest {
             SystemClock.sleep(LIVE_POLL_MS)
         }
 
-        val detail = readStatusDetail(instrumentation, activity)
-        assertTrue("UI must report 3840x2160@30, got: $detail", detail.contains("3840×2160@30"))
-        assertTrue(
-            "UI must report selected E2E bitrate, got: $detail",
-            detail.contains("$streamBitrateMbps Mbps"),
-        )
+        // statusDetail is intentionally reused by the runtime telemetry ticker, so it
+        // no longer contains the initial resolution/bitrate string after the first
+        // stats refresh. The durable UI signal for a live transport is streamInfoChip.
+        // ffprobe on the receiver remains the authority for codec/resolution/FPS/audio.
+        val streamInfo = readStreamInfo(instrumentation, activity)
+        val counters = STREAM_INFO_PATTERN.matchEntire(streamInfo)
+        assertNotNull("UI must report stream counters, got: $streamInfo", counters)
+        val framesSent = counters!!.groupValues[1].toLong()
+        val keyframesSent = counters.groupValues[2].toLong()
+        assertTrue("Expected encoded video frames to be sent, got: $streamInfo", framesSent > 0)
+        assertTrue("Expected at least one keyframe to be sent, got: $streamInfo", keyframesSent > 0)
 
         instrumentation.runOnMainSync { activity.finish() }
         instrumentation.waitForIdleSync()
@@ -183,15 +188,16 @@ class Phase3DeviceE2eTest {
         return live
     }
 
-    private fun readStatusDetail(
+    private fun readStreamInfo(
         instrumentation: android.app.Instrumentation,
         activity: MainActivity,
     ): String {
-        var detail = ""
+        var info = ""
         instrumentation.runOnMainSync {
-            detail = activity.findViewById<android.widget.TextView>(R.id.statusDetail).text.toString()
+            val chip = activity.findViewById<TextView>(R.id.streamInfoChip)
+            info = chip.text.toString().trim()
         }
-        return detail
+        return info
     }
 
     private fun writePreflightEvidence(
@@ -258,6 +264,7 @@ class Phase3DeviceE2eTest {
         private const val DEFAULT_LATENCY_MS = 2_000
         private const val CONNECT_TIMEOUT_MS = 20_000L
         private const val LIVE_POLL_MS = 500L
+        private val STREAM_INFO_PATTERN = Regex("""(\d+) f · (\d+) kf · ([0-9.]+) Mb""")
 
         const val PREFLIGHT_EVIDENCE_FILE = "phase3-device-e2e-preflight.json"
     }
