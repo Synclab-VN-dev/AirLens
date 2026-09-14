@@ -49,7 +49,7 @@ class TelemetrySampler(private val context: Context) {
             null
         }
         @Suppress("DEPRECATION")
-        val wifiRssi = wifi?.connectionInfo?.rssi?.takeIf { it != WifiManager.INVALID_RSSI }
+        val wifiRssi = wifi?.connectionInfo?.rssi?.takeIf { it in -126..0 }
 
         return DeviceTelemetry(
             deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
