@@ -35,7 +35,6 @@ import dev.openstream.app.encoder.MediaCodecAudioEncoder
 import dev.openstream.app.encoder.MediaCodecVideoEncoder
 import dev.openstream.app.stream.ConnectionTarget
 import dev.openstream.app.stream.StreamConfig
-import dev.openstream.app.stream.SrtStreamClient
 import dev.openstream.app.telemetry.TelemetrySampler
 
 class MainActivity : Activity() {
@@ -65,7 +64,7 @@ class MainActivity : Activity() {
     private lateinit var camera: Camera2Controller
     private lateinit var encoder: MediaCodecVideoEncoder
     private lateinit var audioEncoder: MediaCodecAudioEncoder
-    private lateinit var streamClient: SrtStreamClient
+    private lateinit var streamClient: dev.openstream.app.stream.SrtStreamClient
     private lateinit var telemetry: TelemetrySampler
     private lateinit var phoneAdvertiser: PhoneDiscoveryAdvertiser
     private lateinit var obsDiscoveryClient: ObsDiscoveryClient
@@ -81,6 +80,7 @@ class MainActivity : Activity() {
     @Volatile private var listenerThread: Thread? = null
     @Volatile private var callerConnectThread: Thread? = null
     @Volatile private var callerGeneration = 0L
+    @Volatile private var callerModeActive = false
     @Volatile private var pendingListenerStart = false
     @Volatile private var listenerGeneration = 0L
     @Volatile private var activityStarted = false
@@ -125,7 +125,7 @@ class MainActivity : Activity() {
             .takeIf { it in 1024..65535 }
             ?: ConnectionTarget.DEFAULT_PORT
 
-        streamClient = SrtStreamClient()
+        streamClient = dev.openstream.app.stream.SrtStreamClient()
         telemetry = TelemetrySampler(this)
         phoneAdvertiser = PhoneDiscoveryAdvertiser(
             context = this,
@@ -647,7 +647,8 @@ class MainActivity : Activity() {
     }
 
     private fun startStream(target: ConnectionTarget) {
-        stopStream(updateStatus = false)
+        callerModeActive = true
+        stopStream(updateStatus = false, preserveCallerMode = true)
         // Caller mode and listener mode share one native SRT transport. Fully
         // stop the listener before opening a manual caller connection.
         stopPhoneServer(clearReservation = true, updateStatus = false)
@@ -687,6 +688,7 @@ class MainActivity : Activity() {
                 }
                 mainHandler.post {
                     if (callerGeneration != generation) return@post
+                    callerModeActive = false
                     startPreviewIfAllowed()
                     startPhoneServerIfAllowed()
                     statusText.text = "Connection failed"
@@ -715,6 +717,7 @@ class MainActivity : Activity() {
     }
 
     private fun startPhoneServerIfAllowed() {
+        if (callerModeActive) return
         if (phoneServerRunning) return
         if (listenerThread?.isAlive == true) {
             pendingListenerStart = true
@@ -851,9 +854,13 @@ class MainActivity : Activity() {
         btnStop.visibility = View.GONE
     }
 
-    private fun stopStream(updateStatus: Boolean = true) {
+    private fun stopStream(
+        updateStatus: Boolean = true,
+        preserveCallerMode: Boolean = false,
+    ) {
         callerGeneration += 1
         callerConnectThread?.interrupt()
+        if (!preserveCallerMode) callerModeActive = false
         activeTargetName = null
         mainHandler.removeCallbacks(statsTicker)
         phoneConnected = false
