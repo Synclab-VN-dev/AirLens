@@ -68,7 +68,19 @@ def require_binary(name: str) -> str:
 
 def run(command: list[str], *, check: bool = True, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(command), flush=True)
-    return subprocess.run(command, check=check, timeout=timeout, text=True, capture_output=True)
+    result = subprocess.run(command, check=False, timeout=timeout, text=True, capture_output=True)
+    if check and result.returncode != 0:
+        if result.stdout:
+            print(result.stdout.rstrip(), flush=True)
+        if result.stderr:
+            print(result.stderr.rstrip(), file=sys.stderr, flush=True)
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            command,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
+    return result
 
 
 def adb(config: Config, *args: str, check: bool = True, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
@@ -142,8 +154,19 @@ def install_test_build(config: Config) -> None:
     for path in (config.app_apk, config.test_apk):
         if not path.is_file():
             raise SystemExit(f"Không tìm thấy APK: {path}")
-    adb(config, "install", "-r", "-t", str(config.app_apk), timeout=120)
-    adb(config, "install", "-r", "-t", str(config.test_apk), timeout=120)
+
+    # GitHub-hosted runners tạo debug keystore tạm thời. Một APK debug còn lại
+    # trên thiết bị từ run trước có thể mang chữ ký khác và khiến `install -r`
+    # bị INSTALL_FAILED_UPDATE_INCOMPATIBLE. Gỡ đúng hai package test trước khi
+    # cài build của run hiện tại để nghiệm thu luôn dùng APK vừa build.
+    adb(config, "shell", "am", "force-stop", APP_ID, check=False)
+    adb(config, "uninstall", TEST_PACKAGE, check=False, timeout=30)
+    adb(config, "uninstall", APP_ID, check=False, timeout=30)
+
+    # Với ADB qua Tailscale, --no-streaming ổn định hơn vì APK được đẩy xong
+    # trước khi Package Manager bắt đầu cài đặt.
+    adb(config, "install", "--no-streaming", "-t", str(config.app_apk), timeout=180)
+    adb(config, "install", "--no-streaming", "-t", str(config.test_apk), timeout=180)
     adb(config, "shell", "pm", "grant", APP_ID, "android.permission.CAMERA")
     adb(config, "shell", "pm", "grant", APP_ID, "android.permission.RECORD_AUDIO")
     adb(config, "shell", "input", "keyevent", "KEYCODE_WAKEUP", check=False)
