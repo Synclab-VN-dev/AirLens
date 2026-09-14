@@ -17,6 +17,7 @@ import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,22 @@ TEST_CLASS = "dev.openstream.app.Phase6SoakE2eTest#soak4k30WithMicrophone"
 PREFLIGHT_FILE = "phase6-soak-preflight.json"
 
 
-def parse_args(argv: list[str]) -> p3.Config:
+@dataclass(frozen=True)
+class Config:
+    adb_serial: str
+    receiver_host: str
+    app_apk: Path
+    test_apk: Path
+    receiver_port: int
+    duration_seconds: int
+    stream_bitrate_mbps: int
+    capability_bitrate_mbps: int
+    latency_ms: int
+    sample_period_seconds: int
+    evidence_dir: Path
+
+
+def parse_args(argv: list[str]) -> Config:
     parser = argparse.ArgumentParser(description="Phase 6: soak 4K30 + mic on a real Android device.")
     parser.add_argument("--adb-serial", default=os.environ.get("OPENSTREAM_ADB_SERIAL"), required=False)
     parser.add_argument("--receiver-host", default=os.environ.get("OPENSTREAM_RECEIVER_HOST"), required=False)
@@ -61,7 +77,7 @@ def parse_args(argv: list[str]) -> p3.Config:
     if not 10 <= args.sample_period_seconds <= 300:
         parser.error("--sample-period-seconds phải nằm trong 10..300")
 
-    config = p3.Config(
+    return Config(
         adb_serial=args.adb_serial,
         receiver_host=args.receiver_host,
         app_apk=args.app_apk,
@@ -71,17 +87,16 @@ def parse_args(argv: list[str]) -> p3.Config:
         stream_bitrate_mbps=args.stream_bitrate_mbps,
         capability_bitrate_mbps=args.capability_bitrate_mbps,
         latency_ms=args.latency_ms,
+        sample_period_seconds=args.sample_period_seconds,
         evidence_dir=args.evidence_dir,
     )
-    config.sample_period_seconds = args.sample_period_seconds  # type: ignore[attr-defined]
-    return config
 
 
-def adb(config: p3.Config, *args: str, check: bool = True, timeout: float | None = None):
+def adb(config: Config, *args: str, check: bool = True, timeout: float | None = None):
     return p3.run(["adb", "-s", config.adb_serial, *args], check=check, timeout=timeout)
 
 
-def install_with_signature_recovery(config: p3.Config) -> None:
+def install_with_signature_recovery(config: Config) -> None:
     for path in (config.app_apk, config.test_apk):
         if not path.is_file():
             raise SystemExit(f"Không tìm thấy APK: {path}")
@@ -112,7 +127,7 @@ def install_with_signature_recovery(config: p3.Config) -> None:
     adb(config, "logcat", "-c", check=False)
 
 
-def run_instrumentation(config: p3.Config, output_path: Path) -> subprocess.CompletedProcess[str]:
+def run_instrumentation(config: Config, output_path: Path) -> subprocess.CompletedProcess[str]:
     command = [
         "shell", "am", "instrument", "-w", "-r",
         "-e", "receiverHost", config.receiver_host,
@@ -129,7 +144,7 @@ def run_instrumentation(config: p3.Config, output_path: Path) -> subprocess.Comp
     return result
 
 
-def collect_preflight(config: p3.Config, directory: Path) -> dict[str, Any]:
+def collect_preflight(config: Config, directory: Path) -> dict[str, Any]:
     result = adb(
         config,
         "shell", "run-as", APP_ID, "cat", f"files/{PREFLIGHT_FILE}",
@@ -145,7 +160,7 @@ def collect_preflight(config: p3.Config, directory: Path) -> dict[str, Any]:
         return {}
 
 
-def health_sampler(config: p3.Config, path: Path, stop: threading.Event, period: int) -> None:
+def health_sampler(config: Config, path: Path, stop: threading.Event, period: int) -> None:
     with path.open("w", encoding="utf-8") as output:
         while not stop.is_set():
             stamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -173,7 +188,7 @@ def extract_total_pss_samples(text: str) -> list[int]:
 
 
 def validate(
-    config: p3.Config,
+    config: Config,
     instrumentation: subprocess.CompletedProcess[str],
     preflight: dict[str, Any],
     probe: dict[str, Any],
@@ -296,14 +311,16 @@ def main(argv: list[str]) -> int:
     instrumentation_log = config.evidence_dir / "instrumentation.txt"
     health_log = config.evidence_dir / "device-health-samples.txt"
 
-    p3.connect_device(config)
+    p3.connect_device(config)  # type: ignore[arg-type]
     install_with_signature_recovery(config)
 
-    receiver, receiver_log_file = p3.start_receiver(config, ffmpeg, capture_path, receiver_log)
+    receiver, receiver_log_file = p3.start_receiver(  # type: ignore[arg-type]
+        config, ffmpeg, capture_path, receiver_log
+    )
     stop_health = threading.Event()
     sampler = threading.Thread(
         target=health_sampler,
-        args=(config, health_log, stop_health, getattr(config, "sample_period_seconds", 60)),
+        args=(config, health_log, stop_health, config.sample_period_seconds),
         daemon=True,
     )
     sampler.start()
