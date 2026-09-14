@@ -239,7 +239,7 @@ jobs:
           }
           '@ | Set-Content -LiteralPath (Join-Path $configDir "config.json") -Encoding utf8
           python -m pip install --disable-pip-version-check obsws-python
-      - name: Resolve Tailscale path to Android and open SRT firewall
+      - name: Resolve Tailscale path to Android and open CI firewalls
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -268,6 +268,12 @@ jobs:
             -Direction Inbound `
             -Protocol UDP `
             -LocalPort ([int]$env:RECEIVER_PORT) `
+            -Action Allow | Out-Null
+          New-NetFirewallRule `
+            -DisplayName "OpenStream Phase5 Discovery" `
+            -Direction Inbound `
+            -Protocol UDP `
+            -LocalPort 51515 `
             -Action Allow | Out-Null
 
           "PHASE5_ADB_SERIAL=$env:ADB_SERIAL_INPUT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -357,19 +363,40 @@ jobs:
       - name: Run Phase 5 functional acceptance
         shell: powershell
         run: |
-          python tools/phase5_obs_e2e.py `
-            --adb-serial "$env:PHASE5_ADB_SERIAL" `
-            --receiver-host "$env:PHASE5_RECEIVER_HOST" `
-            --obs-log "$env:PHASE5_OBS_LOG" `
-            --app-apk dist/openstream-android.apk `
-            --test-apk dist/openstream-android-test.apk `
-            --receiver-port "$env:RECEIVER_PORT" `
-            --duration-seconds "$env:DURATION_SECONDS" `
-            --stream-bitrate-mbps "$env:STREAM_BITRATE_MBPS" `
-            --capability-bitrate-mbps "$env:CAPABILITY_BITRATE_MBPS" `
-            --latency-ms "$env:LATENCY_MS" `
-            --evidence-dir build/phase5-obs-e2e
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Stop'
+          $adbExe = (Get-Command adb).Source
+          $beaconPayload = 'OPENSTREAM_PHONE/1 {"type":"dev.openstream.phone","version":1,"name":"Phase5 CI Android","instanceId":"phase5-ci-phone","listenerPort":' + $env:RECEIVER_PORT + ',"latencyMs":' + $env:LATENCY_MS + ',"bitrateMbps":' + $env:STREAM_BITRATE_MBPS + ',"codec":"video/avc","width":3840,"height":2160,"fps":30,"controlPort":9001,"busy":false,"reservedBy":""}'
+          $beaconJob = Start-Job -ScriptBlock {
+            param($adb, $serial, $hostIp, $payload)
+            while ($true) {
+              try {
+                $payload | & $adb -s $serial shell toybox nc -u -w 1 $hostIp 51515 2>$null | Out-Null
+              } catch {
+              }
+              Start-Sleep -Milliseconds 500
+            }
+          } -ArgumentList $adbExe, $env:PHASE5_ADB_SERIAL, $env:PHASE5_RECEIVER_HOST, $beaconPayload
+
+          try {
+            python tools/phase5_obs_e2e.py `
+              --adb-serial "$env:PHASE5_ADB_SERIAL" `
+              --receiver-host "$env:PHASE5_RECEIVER_HOST" `
+              --obs-log "$env:PHASE5_OBS_LOG" `
+              --app-apk dist/openstream-android.apk `
+              --test-apk dist/openstream-android-test.apk `
+              --receiver-port "$env:RECEIVER_PORT" `
+              --duration-seconds "$env:DURATION_SECONDS" `
+              --stream-bitrate-mbps "$env:STREAM_BITRATE_MBPS" `
+              --capability-bitrate-mbps "$env:CAPABILITY_BITRATE_MBPS" `
+              --latency-ms "$env:LATENCY_MS" `
+              --evidence-dir build/phase5-obs-e2e
+            $acceptanceExit = $LASTEXITCODE
+          } finally {
+            Stop-Job -Job $beaconJob -ErrorAction SilentlyContinue
+            Receive-Job -Job $beaconJob -ErrorAction SilentlyContinue | Select-Object -Last 20 | Write-Host
+            Remove-Job -Job $beaconJob -Force -ErrorAction SilentlyContinue
+          }
+          if ($acceptanceExit -ne 0) { exit $acceptanceExit }
       - name: Collect hosted OBS diagnostics
         if: always()
         shell: powershell
