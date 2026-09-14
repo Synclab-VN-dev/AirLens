@@ -140,9 +140,7 @@ class Phase6SoakE2eTest {
         SystemClock.sleep(PREVIEW_WARMUP_MS)
 
         val connectIntent = Intent(Intent.ACTION_VIEW, targetUri, context, MainActivity::class.java)
-        instrumentation.runOnMainSync {
-            activity.onNewIntent(connectIntent)
-        }
+        instrumentation.callActivityOnNewIntent(activity, connectIntent)
         instrumentation.waitForIdleSync()
 
         assertTrue(
