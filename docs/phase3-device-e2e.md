@@ -4,6 +4,31 @@ Mục tiêu của bài kiểm thử này là tự động xác nhận đường 
 
 `Camera2 thật -> MediaCodec H.264 phần cứng -> mic/AudioRecord -> AAC -> MPEG-TS -> libsrt/SRT -> Linux receiver -> ffprobe`.
 
+## Mô hình lab
+
+Lab dùng hai thiết bị độc lập, không cần cắm USB trực tiếp:
+
+- **T1**: Android thật, truy cập được từ T2 bằng ADB qua Tailscale;
+- **T2**: Linux self-hosted GitHub Actions runner, đồng thời là SRT receiver và máy thu evidence.
+
+T2 chủ động kết nối outbound tới GitHub để nhận job. GitHub không cần biết IP của T2 và không SSH vào T2.
+
+Workflow dùng repository variable:
+
+```text
+OPENSTREAM_ANDROID_ADB_ENDPOINT
+```
+
+Giá trị là ADB endpoint của T1, ví dụ `100.x.y.z:5555`. Endpoint này không được hard-code trong repository.
+
+Tailscale IPv4 của T2 được workflow tự lấy tại runtime bằng:
+
+```bash
+tailscale ip -4
+```
+
+Sau đó workflow tự chạy `adb connect "$OPENSTREAM_ANDROID_ADB_ENDPOINT"`, xác nhận trạng thái `device`, rồi truyền Tailscale IPv4 của T2 cho instrumentation làm SRT caller target.
+
 ## Phân tách capability và hiệu năng mạng
 
 Đường Tailscale có thể chậm hơn bitrate sản phẩm. Vì vậy bài kiểm thử tách hai gate:
@@ -13,35 +38,42 @@ Mục tiêu của bài kiểm thử này là tự động xác nhận đường 
 
 Hiệu năng sustained `20-40 Mbps` trên LAN/Wi-Fi tốt vẫn là hạng mục nghiệm thu riêng. Không được dùng kết quả Tailscale để kết luận throughput 4K30 production.
 
-## Điều kiện Linux
+## Điều kiện Linux T2
 
-Linux cần có:
+T2 cần có:
 
+- GitHub self-hosted runner có label `openstream-device-lab`;
 - Python 3;
-- `adb`;
+- `adb` trên `PATH`;
+- `tailscale` trên `PATH`;
 - FFmpeg có hỗ trợ `srt`;
 - `ffprobe`;
 - kết nối Tailscale tới Android;
 - cổng UDP `19000` không bị firewall chặn.
 
-Kiểm tra FFmpeg:
+Kiểm tra nhanh:
 
 ```bash
+adb version
+tailscale ip -4
 ffmpeg -hide_banner -protocols | grep -w srt
+ffprobe -version | head -n 1
 ```
 
-## Điều kiện Android
+Runner nên chạy bằng cùng user đã xác nhận `adb connect` tới T1 hoạt động.
 
-Android phải cho phép ADB từ Linux. Nếu hai máy chỉ gặp nhau qua Tailscale thì `adb` cũng phải đi được qua Tailscale.
+## Điều kiện Android T1
 
-Ví dụ khi thiết bị đã bật ADB TCP ở cổng 5555:
+Android phải cho phép ADB từ Linux qua Tailscale. Pairing/authorization ban đầu phải hoàn thành trước khi workflow chạy.
+
+Ví dụ khi thiết bị dùng ADB TCP cổng 5555:
 
 ```bash
 adb connect <TAILSCALE_IP_ANDROID>:5555
 adb -s <TAILSCALE_IP_ANDROID>:5555 get-state
 ```
 
-Nếu dùng Wireless debugging với cổng ngẫu nhiên, dùng đúng cổng `adb connect` mà Android hiển thị. Nếu cần pairing lần đầu thì pairing phải hoàn thành trước khi workflow chạy.
+Nếu dùng Wireless debugging với cổng ngẫu nhiên, repository variable `OPENSTREAM_ANDROID_ADB_ENDPOINT` phải chứa đúng endpoint hiện tại.
 
 ## Chạy trực tiếp trên Linux
 
@@ -99,6 +131,8 @@ Workflow `.github/workflows/phase3-device-e2e.yml` dùng runner:
 self-hosted, linux, openstream-device-lab
 ```
 
-Linux lab cần đăng ký làm GitHub self-hosted runner và gắn label `openstream-device-lab`. Workflow build APK trên GitHub-hosted runner, sau đó tải APK xuống Linux lab và chạy hardware E2E. Vì vậy Linux lab không cần Android SDK/Gradle để chạy gate, chỉ cần `adb`, Python, FFmpeg và ffprobe.
+APK và instrumentation APK được build trên GitHub-hosted runner. Job hardware sau đó tải chúng xuống T2, tự resolve topology T1/T2, chạy test và upload evidence.
 
-Workflow hiện chỉ tự động tạo evidence và quyết định pass/fail. Phiếu #5 chỉ được đóng sau khi evidence này pass và hạng mục throughput LAN thủ công đã được xác nhận hoặc được chuyển rõ ràng sang một gate khác theo quyết định của dự án.
+Trong nhánh Phase 3, workflow có `push` trigger giới hạn vào nhánh `phase-3-4k30-mic-path` và các path liên quan để có thể chạy acceptance ngay khi harness/app thay đổi. `workflow_dispatch` vẫn được giữ cho các lần chạy lại thủ công với bitrate, latency hoặc duration khác.
+
+Phiếu #5 chỉ được đóng sau khi hardware E2E thực tế PASS và hạng mục throughput LAN thủ công được xác nhận hoặc được tách rõ thành acceptance gate riêng theo quyết định dự án.
