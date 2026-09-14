@@ -3,6 +3,14 @@ name: Phase 5 OBS E2E
 on:
   workflow_dispatch:
     inputs:
+      runner_os:
+        description: "Hệ điều hành máy đang chạy OBS; Windows là đường nghiệm thu chính"
+        required: true
+        default: windows
+        type: choice
+        options:
+          - windows
+          - linux
       adb_serial:
         description: "ADB serial của T1, ví dụ 100.x.y.z:5555"
         required: true
@@ -93,8 +101,67 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
 
-  obs-device-e2e:
-    name: Android 4K30 + mic into real OBS
+  obs-device-e2e-windows:
+    name: Android 4K30 + mic into real OBS on Windows
+    if: ${{ inputs.runner_os == 'windows' }}
+    needs: build-android
+    runs-on: [self-hosted, windows, openstream-obs-lab]
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download app + instrumentation APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: phase5-device-apks
+          path: dist
+
+      - name: Verify OBS lab prerequisites
+        shell: powershell
+        run: |
+          if (!(Get-Command python -ErrorAction SilentlyContinue)) { throw "python is not on PATH" }
+          if (!(Get-Command adb -ErrorAction SilentlyContinue)) { throw "adb is not on PATH" }
+          if (!(Test-Path -LiteralPath '${{ inputs.obs_log_path }}')) { throw "OBS log does not exist" }
+          python -m py_compile tools/phase5_obs_e2e.py
+
+      - name: Run Phase 5 OBS acceptance
+        shell: powershell
+        run: |
+          python tools/phase5_obs_e2e.py `
+            --adb-serial '${{ inputs.adb_serial }}' `
+            --receiver-host '${{ inputs.receiver_host }}' `
+            --obs-log '${{ inputs.obs_log_path }}' `
+            --app-apk dist/openstream-android.apk `
+            --test-apk dist/openstream-android-test.apk `
+            --receiver-port '${{ inputs.receiver_port }}' `
+            --duration-seconds '${{ inputs.duration_seconds }}' `
+            --stream-bitrate-mbps '${{ inputs.stream_bitrate_mbps }}' `
+            --capability-bitrate-mbps '${{ inputs.capability_bitrate_mbps }}' `
+            --latency-ms '${{ inputs.latency_ms }}' `
+            --evidence-dir build/phase5-obs-e2e
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stop test app
+        if: always()
+        shell: powershell
+        run: adb -s '${{ inputs.adb_serial }}' shell am force-stop dev.openstream.app
+        continue-on-error: true
+
+      - name: Upload Phase 5 OBS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-obs-e2e-evidence-windows
+          path: build/phase5-obs-e2e
+          if-no-files-found: warn
+
+  obs-device-e2e-linux:
+    name: Android 4K30 + mic into real OBS on Linux
+    if: ${{ inputs.runner_os == 'linux' }}
     needs: build-android
     runs-on: [self-hosted, linux, openstream-obs-lab]
     timeout-minutes: 20
@@ -143,6 +210,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase5-obs-e2e-evidence
+          name: phase5-obs-e2e-evidence-linux
           path: build/phase5-obs-e2e
           if-no-files-found: warn
