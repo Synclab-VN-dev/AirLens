@@ -1,3 +1,4 @@
+import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -7,6 +8,7 @@ MODULE_PATH = ROOT / "tools" / "phase5_obs_e2e.py"
 SPEC = spec_from_file_location("phase5_obs_e2e", MODULE_PATH)
 assert SPEC and SPEC.loader
 MODULE = module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
