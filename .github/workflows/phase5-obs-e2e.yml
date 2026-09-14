@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       runner_os:
-        description: "Hệ điều hành máy đang chạy OBS; Windows là đường nghiệm thu chính"
+        description: "Đường nghiệm thu; Windows hosted là mặc định"
         required: true
         default: windows
         type: choice
@@ -19,15 +19,15 @@ on:
         required: false
         type: string
       receiver_host:
-        description: "IPv4 của máy OBS mà T1 truy cập được; để trống để tự lấy Tailscale IPv4"
+        description: "IPv4 của máy OBS mà T1 truy cập được; Windows hosted để trống để tự lấy Tailscale IPv4"
         required: false
         type: string
       obs_log_path:
-        description: "Đường dẫn log OBS hiện tại; để trống để tự tìm log mới nhất"
+        description: "Chỉ dùng cho Linux lab thủ công"
         required: false
         type: string
       receiver_port:
-        description: "Cổng listener của nguồn OpenStream trong OBS"
+        description: "Cổng SRT của nguồn OpenStream trong OBS"
         required: true
         default: "9000"
         type: string
@@ -47,7 +47,7 @@ on:
         default: "30"
         type: string
       latency_ms:
-        description: "SRT latency; nên khớp nguồn OBS"
+        description: "SRT latency"
         required: true
         default: "120"
         type: string
@@ -104,16 +104,61 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
 
-  obs-device-e2e-windows:
-    name: Android 4K30 + mic into real OBS on Windows
+  build-obs-plugin-windows:
+    name: Build OBS plugin for hosted Windows acceptance
     if: ${{ github.event_name == 'push' || inputs.runner_os == 'windows' }}
-    needs: build-android
-    runs-on: [self-hosted, windows, openstream-obs-lab]
-    timeout-minutes: 20
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install OBS Studio 32.2.1 SDK/runtime
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = "https://github.com/obsproject/obs-studio/releases/download/32.2.1/OBS-Studio-32.2.1-Windows-x64.zip"
+          $archive = "$env:RUNNER_TEMP\obs-studio.zip"
+          $destination = "$env:RUNNER_TEMP\obs-studio"
+          & curl.exe -L --fail --retry 3 -o $archive $url
+          if ($LASTEXITCODE -ne 0) { throw "OBS Studio download failed" }
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = "db64a2934f8261f85b1410b84be011207a0afda5400d008289f1f1e211bcc7de"
+          if ($actual -ne $expected) { throw "OBS Studio checksum mismatch" }
+          Expand-Archive -Path $archive -DestinationPath $destination
+          "OPENSTREAM_OBS_INSTALL=$destination" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install matching Qt development files
+        shell: powershell
+        run: |
+          python -m pip install --disable-pip-version-check aqtinstall
+          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:\Qt
+          "OPENSTREAM_QT_ROOT=C:\Qt\6.8.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build plugin DLL
+        shell: cmd
+        run: |
+          set OPENSTREAM_SKIP_INSTALL=1
+          call build_plugin.bat
+
+      - name: Upload exact plugin under test
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-obs-plugin-windows
+          path: obs-plugin/build/openstream-obs.dll
+          if-no-files-found: error
+
+  obs-device-e2e-windows:
+    name: Android 4K30 + mic into real OBS on GitHub Windows
+    if: ${{ github.event_name == 'push' || inputs.runner_os == 'windows' }}
+    needs: [build-android, build-obs-plugin-windows]
+    runs-on: windows-latest
+    timeout-minutes: 25
     env:
       ADB_SERIAL_INPUT: ${{ inputs.adb_serial || vars.OPENSTREAM_ANDROID_ADB_ENDPOINT }}
       RECEIVER_HOST_INPUT: ${{ inputs.receiver_host }}
-      OBS_LOG_INPUT: ${{ inputs.obs_log_path }}
       RECEIVER_PORT: ${{ inputs.receiver_port || '9000' }}
       DURATION_SECONDS: ${{ inputs.duration_seconds || '12' }}
       STREAM_BITRATE_MBPS: ${{ inputs.stream_bitrate_mbps || '8' }}
@@ -126,58 +171,176 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Android platform tools
+        uses: android-actions/setup-android@v3
+
+      - name: Join the OpenStream CI node to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:openstream-ci
+
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
         with:
           name: phase5-device-apks
           path: dist
 
-      - name: Resolve real OBS lab automatically
+      - name: Download exact OBS plugin DLL
+        uses: actions/download-artifact@v4
+        with:
+          name: phase5-obs-plugin-windows
+          path: dist/obs-plugin
+
+      - name: Install OBS Studio 32.2.1 runtime and plugin
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          if (!(Get-Command python -ErrorAction SilentlyContinue)) { throw 'python is not on PATH' }
-          if (!(Get-Command adb -ErrorAction SilentlyContinue)) { throw 'adb is not on PATH' }
+          $url = "https://github.com/obsproject/obs-studio/releases/download/32.2.1/OBS-Studio-32.2.1-Windows-x64.zip"
+          $archive = "$env:RUNNER_TEMP\obs-studio.zip"
+          $destination = "$env:RUNNER_TEMP\obs-studio"
+          & curl.exe -L --fail --retry 3 -o $archive $url
+          if ($LASTEXITCODE -ne 0) { throw "OBS Studio download failed" }
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = "db64a2934f8261f85b1410b84be011207a0afda5400d008289f1f1e211bcc7de"
+          if ($actual -ne $expected) { throw "OBS Studio checksum mismatch" }
+          Expand-Archive -Path $archive -DestinationPath $destination
+
+          $plugin = Resolve-Path "dist\obs-plugin\openstream-obs.dll"
+          $pluginDir = Join-Path $destination "obs-plugins\64bit"
+          New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
+          Copy-Item -LiteralPath $plugin -Destination (Join-Path $pluginDir "openstream-obs.dll") -Force
+
+          "PHASE5_OBS_ROOT=$destination" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Enable local OBS WebSocket control for CI bootstrap
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $configDir = Join-Path $env:APPDATA "obs-studio\plugin_config\obs-websocket"
+          New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+          @'
+          {
+            "server_enabled": true,
+            "server_port": 4455,
+            "auth_required": false,
+            "first_load": false
+          }
+          '@ | Set-Content -LiteralPath (Join-Path $configDir "config.json") -Encoding utf8
+          python -m pip install --disable-pip-version-check obsws-python
+
+      - name: Resolve Tailscale path to Android and open SRT firewall
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
           if ([string]::IsNullOrWhiteSpace($env:ADB_SERIAL_INPUT)) {
             throw 'Missing ADB serial. Configure repository variable OPENSTREAM_ANDROID_ADB_ENDPOINT or dispatch with adb_serial.'
           }
 
-          adb connect $env:ADB_SERIAL_INPUT | Write-Host
-          $state = (adb -s $env:ADB_SERIAL_INPUT get-state 2>$null).Trim()
-          if ($state -ne 'device') { throw "ADB device is not online: $env:ADB_SERIAL_INPUT ($state)" }
-
           $receiverHost = $env:RECEIVER_HOST_INPUT
           if ([string]::IsNullOrWhiteSpace($receiverHost)) {
-            if (!(Get-Command tailscale -ErrorAction SilentlyContinue)) {
-              throw 'receiver_host was not provided and tailscale is not on PATH'
-            }
             $receiverHost = ((tailscale ip -4) | Select-Object -First 1).Trim()
           }
-          if ([string]::IsNullOrWhiteSpace($receiverHost)) { throw 'Could not resolve receiver host' }
+          if ([string]::IsNullOrWhiteSpace($receiverHost)) { throw 'Could not resolve hosted runner Tailscale IPv4' }
 
-          $obs = Get-Process -Name obs64,obs -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (!$obs) { throw 'OBS Studio is not running on the Windows lab' }
+          adb connect $env:ADB_SERIAL_INPUT | Write-Host
+          $state = (adb -s $env:ADB_SERIAL_INPUT get-state 2>$null).Trim()
+          if ($state -ne 'device') { throw "ADB device is not online through Tailscale: $env:ADB_SERIAL_INPUT ($state)" }
 
-          $obsLog = $env:OBS_LOG_INPUT
-          if ([string]::IsNullOrWhiteSpace($obsLog)) {
-            $logRoot = Join-Path $env:APPDATA 'obs-studio\logs'
-            $latest = Get-ChildItem -LiteralPath $logRoot -Filter '*.txt' -File -ErrorAction SilentlyContinue |
-              Sort-Object LastWriteTime -Descending |
-              Select-Object -First 1
-            if (!$latest) { throw "No OBS log found under $logRoot" }
-            $obsLog = $latest.FullName
-          }
-          if (!(Test-Path -LiteralPath $obsLog)) { throw "OBS log does not exist: $obsLog" }
+          New-NetFirewallRule `
+            -DisplayName "OpenStream Phase5 SRT" `
+            -Direction Inbound `
+            -Protocol UDP `
+            -LocalPort ([int]$env:RECEIVER_PORT) `
+            -Action Allow | Out-Null
 
-          python -m py_compile tools/phase5_obs_e2e.py
           "PHASE5_ADB_SERIAL=$env:ADB_SERIAL_INPUT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "PHASE5_RECEIVER_HOST=$receiverHost" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "PHASE5_OBS_LOG=$obsLog" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          Write-Host "Device: $(adb -s $env:ADB_SERIAL_INPUT shell getprop ro.product.model)"
-          Write-Host "Receiver host: $receiverHost"
+          Write-Host "Android: $(adb -s $env:ADB_SERIAL_INPUT shell getprop ro.product.model)"
+          Write-Host "Hosted Windows Tailscale IPv4: $receiverHost"
+
+      - name: Start real OBS and create OpenStream source
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $obsExe = Join-Path $env:PHASE5_OBS_ROOT "bin\64bit\obs64.exe"
+          if (!(Test-Path -LiteralPath $obsExe)) { throw "OBS executable missing: $obsExe" }
+
+          $obs = Start-Process `
+            -FilePath $obsExe `
+            -WorkingDirectory (Split-Path -Parent $obsExe) `
+            -ArgumentList @('--multi','--disable-shutdown-check','--minimize-to-tray') `
+            -PassThru
+          "PHASE5_OBS_PID=$($obs.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          $logRoot = Join-Path $env:APPDATA "obs-studio\logs"
+          $deadline = (Get-Date).AddSeconds(45)
+          $obsLog = $null
+          while ((Get-Date) -lt $deadline) {
+            if ($obs.HasExited) { throw "OBS exited during startup with code $($obs.ExitCode)" }
+            $obsLog = Get-ChildItem -LiteralPath $logRoot -Filter '*.txt' -File -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+            if ($obsLog -and (Select-String -LiteralPath $obsLog.FullName -SimpleMatch '[OpenStream] OBS plugin loaded' -Quiet)) {
+              break
+            }
+            Start-Sleep -Seconds 1
+          }
+          if (!$obsLog) { throw "OBS did not create a log under $logRoot" }
+          if (!(Select-String -LiteralPath $obsLog.FullName -SimpleMatch '[OpenStream] OBS plugin loaded' -Quiet)) {
+            Get-Content -LiteralPath $obsLog.FullName -Tail 120 | Write-Host
+            throw 'OBS started but did not load the OpenStream plugin built by this run'
+          }
+
+          $createSource = @'
+          import time
+          import obsws_python as obs
+
+          deadline = time.time() + 30
+          client = None
+          while time.time() < deadline:
+              try:
+                  client = obs.ReqClient(host="127.0.0.1", port=4455, timeout=3)
+                  client.get_version()
+                  break
+              except Exception:
+                  time.sleep(1)
+          if client is None:
+              raise SystemExit("OBS WebSocket did not become ready")
+
+          scene = "Phase5"
+          source = "OpenStream Phase5"
+          try:
+              client.create_scene(scene)
+          except Exception:
+              pass
+          try:
+              client.create_input(
+                  scene,
+                  source,
+                  "openstream_phone_v8_source",
+                  {
+                      "listener_enabled": True,
+                      "listener_port": int(__import__('os').environ['RECEIVER_PORT']),
+                      "latency_ms": int(__import__('os').environ['LATENCY_MS']),
+                      "bitrate_mbps": int(__import__('os').environ['STREAM_BITRATE_MBPS']),
+                  },
+                  True,
+              )
+          except Exception as exc:
+              if "already exists" not in str(exc).lower():
+                  raise
+          client.set_current_program_scene(scene)
+          print("Created real OBS OpenStream source for Phase 5")
+          '@
+          $createSource | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create OpenStream source in real OBS' }
+
+          "PHASE5_OBS_LOG=$($obsLog.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "OBS PID: $($obs.Id)"
-          Write-Host "OBS log: $obsLog"
+          Write-Host "OBS log: $($obsLog.FullName)"
 
       - name: Run Phase 5 functional acceptance
         shell: powershell
@@ -196,12 +359,20 @@ jobs:
             --evidence-dir build/phase5-obs-e2e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Stop test app
+      - name: Collect hosted OBS diagnostics
         if: always()
         shell: powershell
         run: |
+          New-Item -ItemType Directory -Force -Path build/phase5-obs-e2e | Out-Null
+          if ($env:PHASE5_OBS_LOG -and (Test-Path -LiteralPath $env:PHASE5_OBS_LOG)) {
+            Copy-Item -LiteralPath $env:PHASE5_OBS_LOG -Destination build/phase5-obs-e2e/obs-full.log -Force
+          }
+          tailscale status | Out-File build/phase5-obs-e2e/tailscale-status.txt -Encoding utf8
           if ($env:PHASE5_ADB_SERIAL) {
-            adb -s "$env:PHASE5_ADB_SERIAL" shell am force-stop dev.openstream.app
+            adb -s "$env:PHASE5_ADB_SERIAL" shell am force-stop dev.openstream.app 2>$null
+          }
+          if ($env:PHASE5_OBS_PID) {
+            Stop-Process -Id ([int]$env:PHASE5_OBS_PID) -Force -ErrorAction SilentlyContinue
           }
         continue-on-error: true
 
@@ -209,7 +380,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase5-obs-e2e-evidence-windows
+          name: phase5-obs-e2e-evidence-windows-hosted
           path: build/phase5-obs-e2e
           if-no-files-found: warn
 
@@ -217,7 +388,7 @@ jobs:
     name: Android 4K30 + mic into real OBS on Linux
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_os == 'linux' }}
     needs: build-android
-    runs-on: [self-hosted, linux, openstream-obs-lab]
+    runs-on: [self-hosted, linux, openstream-device-lab]
     timeout-minutes: 20
 
     steps:
