@@ -182,9 +182,9 @@ class Phase4DeviceE2eTest {
             latencyMs = latencyMs,
         )
 
-        // Khởi động Activity trước rồi mới gửi pairing intent. Nhánh Phase 4 được
-        // ghép trên Phase 3 khi review; cách này tập trung test 4K60/advanced
-        // encoding và tránh lặp lại regression cold-start caller đã được Phase 3 gate.
+        // Khởi động Activity trước rồi gửi pairing intent qua Android lifecycle.
+        // MainActivity là singleTop nên startActivity() sẽ chuyển intent vào
+        // onNewIntent() của instance hiện tại mà test không cần gọi API protected.
         val activity = instrumentation.startActivitySync(
             Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -202,8 +202,11 @@ class Phase4DeviceE2eTest {
             .appendQueryParameter("bitrateMbps", streamBitrateMbps.toString())
             .appendQueryParameter("name", "Phase 4 device E2E")
             .build()
-        val pairingIntent = Intent(Intent.ACTION_VIEW, targetUri, context, MainActivity::class.java)
-        instrumentation.runOnMainSync { activity.onNewIntent(pairingIntent) }
+        val pairingIntent = Intent(Intent.ACTION_VIEW, targetUri, context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        instrumentation.runOnMainSync { activity.startActivity(pairingIntent) }
+        instrumentation.waitForIdleSync()
 
         assertTrue(
             "OpenStream did not reach LIVE state within ${CONNECT_TIMEOUT_MS}ms",
