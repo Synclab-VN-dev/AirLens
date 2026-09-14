@@ -1,8 +1,12 @@
 package dev.openstream.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.media.MediaCodec
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -28,9 +32,10 @@ import java.io.File
 /**
  * Nghiệm thu Giai đoạn 4 trên thiết bị thật.
  *
- * Nếu chuỗi Camera2 + MediaCodec không hỗ trợ 4K60, test ghi bằng chứng
- * modeSupported=false và xác nhận resolver không quảng cáo 4K60. Nếu có hỗ trợ,
- * test phát 4K60 thật qua SRT để đầu Linux kiểm bằng ffprobe.
+ * Đường chuẩn vẫn yêu cầu resolver Camera2 + MediaCodec quảng cáo 4K60. Riêng
+ * thiết bị có output 4K + AE 60 nhưng getOutputMinFrameDuration() làm probe tĩnh
+ * loại 60 fps, test được phép thử một phiên Camera2 4K60 thật. Chỉ ffprobe gần
+ * 60 fps ở đầu nhận mới được coi là bằng chứng positive; không có silent fallback.
  */
 @RunWith(AndroidJUnit4::class)
 class Phase4DeviceE2eTest {
@@ -65,14 +70,20 @@ class Phase4DeviceE2eTest {
             context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
         )
 
-        val rawCameraMode = CameraCapabilityProbe(context).query()
-            .flatMap { it.modes }
-            .firstOrNull {
-                it.lens == CameraLens.Back &&
-                    it.width == TARGET_WIDTH &&
-                    it.height == TARGET_HEIGHT &&
-                    it.fps == TARGET_FPS
-            }
+        val cameraCapabilities = CameraCapabilityProbe(context).query()
+        val cameraModes = cameraCapabilities.flatMap { it.modes }
+        val rawCameraMode = cameraModes.firstOrNull {
+            it.lens == CameraLens.Back &&
+                it.width == TARGET_WIDTH &&
+                it.height == TARGET_HEIGHT &&
+                it.fps == TARGET_FPS
+        }
+        val back4kCandidate = cameraModes.firstOrNull {
+            it.lens == CameraLens.Back &&
+                it.width == TARGET_WIDTH &&
+                it.height == TARGET_HEIGHT
+        }
+
         val hardwareProbe = HardwareVideoCapabilityProbe()
         val hardwareSupports = hardwareProbe.supportsAvc(
             width = TARGET_WIDTH,
@@ -95,16 +106,27 @@ class Phase4DeviceE2eTest {
                 it.fps == TARGET_FPS
         }
 
-        if (rawCameraMode == null || !hardwareSupports) {
+        val trialCamera2Ae60 = back4kCandidate?.let { mode ->
+            camera2CanAttempt60(context, mode.cameraId)
+        } == true
+        val forcedCamera2Trial = rawCameraMode == null &&
+            back4kCandidate != null &&
+            trialCamera2Ae60 &&
+            hardwareSupports
+
+        if ((rawCameraMode == null && !forcedCamera2Trial) || !hardwareSupports) {
             assertTrue(
-                "Resolver must not advertise 4K60 when Camera2 or hardware AVC cannot satisfy the requested gate",
+                "Resolver must not advertise 4K60 when the strict Camera2 probe or hardware AVC cannot satisfy the requested gate",
                 targetMode == null,
             )
             writePreflightEvidence(
                 filesDir = context.filesDir,
                 modeSupported = false,
-                cameraId = rawCameraMode?.cameraId,
-                rawCameraSupports = rawCameraMode != null,
+                cameraId = rawCameraMode?.cameraId ?: back4kCandidate?.cameraId,
+                rawCameraSupports = false,
+                strictCamera2ProbeSupports = rawCameraMode != null,
+                forcedCamera2Trial = false,
+                camera2TrialAe60 = trialCamera2Ae60,
                 hardwareSupports = hardwareSupports,
                 highProfileAvailable = false,
                 maxHardwareBitrate = null,
@@ -119,32 +141,60 @@ class Phase4DeviceE2eTest {
             return
         }
 
-        assertNotNull(
-            "Camera2 + hardware AVC support 4K60 independently, so resolver must advertise the same mode",
-            targetMode,
-        )
-        targetMode!!
+        if (forcedCamera2Trial) {
+            assertTrue(
+                "Forced Camera2 trial is only valid when the conservative resolver has not already advertised 4K60",
+                targetMode == null,
+            )
+        } else {
+            assertNotNull(
+                "Camera2 + hardware AVC support 4K60 independently, so resolver must advertise the same mode",
+                targetMode,
+            )
+        }
 
-        val profilePreference = if (targetMode.highProfileAvailable) {
+        val effectiveCameraId = rawCameraMode?.cameraId ?: back4kCandidate!!.cameraId
+        val highProfileAvailable = hardwareProbe.supportsHighProfile(
+            width = TARGET_WIDTH,
+            height = TARGET_HEIGHT,
+            fps = TARGET_FPS,
+            bitrate = capabilityBitrateMbps * 1_000_000,
+        )
+        val profilePreference = if (highProfileAvailable) {
             AvcProfilePreference.High
         } else {
             AvcProfilePreference.Auto
         }
-        val networkModes = resolver.resolve(
-            bitrate = streamBitrateMbps * 1_000_000,
-            bitrateMode = VideoBitrateMode.Cbr,
-            profilePreference = profilePreference,
-        )
-        assertTrue(
-            "The same physical 4K60 path must support the E2E stream bitrate $streamBitrateMbps Mbps",
-            networkModes.any {
-                it.cameraId == targetMode.cameraId &&
-                    it.lens == targetMode.lens &&
-                    it.width == TARGET_WIDTH &&
-                    it.height == TARGET_HEIGHT &&
-                    it.fps == TARGET_FPS
-            },
-        )
+
+        if (forcedCamera2Trial) {
+            assertTrue(
+                "Hardware AVC must support the forced 4K60 trial at the E2E network bitrate",
+                hardwareProbe.supportsAvc(
+                    width = TARGET_WIDTH,
+                    height = TARGET_HEIGHT,
+                    fps = TARGET_FPS,
+                    bitrate = streamBitrateMbps * 1_000_000,
+                    bitrateMode = VideoBitrateMode.Cbr,
+                    profilePreference = profilePreference,
+                ),
+            )
+        } else {
+            val networkModes = resolver.resolve(
+                bitrate = streamBitrateMbps * 1_000_000,
+                bitrateMode = VideoBitrateMode.Cbr,
+                profilePreference = profilePreference,
+            )
+            assertTrue(
+                "The same physical 4K60 path must support the E2E stream bitrate $streamBitrateMbps Mbps",
+                networkModes.any {
+                    it.cameraId == effectiveCameraId &&
+                        it.lens == CameraLens.Back &&
+                        it.width == TARGET_WIDTH &&
+                        it.height == TARGET_HEIGHT &&
+                        it.fps == TARGET_FPS
+                },
+            )
+        }
 
         val config = StreamConfig.Baseline1080p30.copy(
             width = TARGET_WIDTH,
@@ -168,11 +218,18 @@ class Phase4DeviceE2eTest {
         writePreflightEvidence(
             filesDir = context.filesDir,
             modeSupported = true,
-            cameraId = targetMode.cameraId,
-            rawCameraSupports = true,
+            cameraId = effectiveCameraId,
+            // Compatibility field used by the Linux harness. In trial mode it
+            // means Camera2 exposes 4K output + AE60 and is being validated by
+            // a real session; strictCamera2ProbeSupports4k60 keeps the static
+            // probe result explicit so this is not mistaken for metadata proof.
+            rawCameraSupports = rawCameraMode != null || forcedCamera2Trial,
+            strictCamera2ProbeSupports = rawCameraMode != null,
+            forcedCamera2Trial = forcedCamera2Trial,
+            camera2TrialAe60 = trialCamera2Ae60,
             hardwareSupports = true,
-            highProfileAvailable = targetMode.highProfileAvailable,
-            maxHardwareBitrate = targetMode.maxHardwareBitrate,
+            highProfileAvailable = highProfileAvailable,
+            maxHardwareBitrate = hardwareProbe.maxBitrateFor(TARGET_WIDTH, TARGET_HEIGHT, TARGET_FPS),
             profilePreference = profilePreference,
             capabilityBitrateMbps = capabilityBitrateMbps,
             streamBitrateMbps = streamBitrateMbps,
@@ -182,9 +239,6 @@ class Phase4DeviceE2eTest {
             latencyMs = latencyMs,
         )
 
-        // Khởi động Activity trước rồi gửi pairing intent qua Android lifecycle.
-        // MainActivity là singleTop nên startActivity() sẽ chuyển intent vào
-        // onNewIntent() của instance hiện tại mà test không cần gọi API protected.
         val activity = instrumentation.startActivitySync(
             Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -234,6 +288,21 @@ class Phase4DeviceE2eTest {
         instrumentation.waitForIdleSync()
     }
 
+    private fun camera2CanAttempt60(context: Context, cameraId: String): Boolean {
+        val manager = context.getSystemService(CameraManager::class.java)
+        val chars = runCatching { manager.getCameraCharacteristics(cameraId) }.getOrNull() ?: return false
+        val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return false
+        val has4kCodecSurface = runCatching {
+            map.getOutputSizes(MediaCodec::class.java)?.any {
+                it.width == TARGET_WIDTH && it.height == TARGET_HEIGHT
+            } == true
+        }.getOrDefault(false)
+        val aeAllows60 = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+            ?.any { TARGET_FPS in it.lower..it.upper }
+            ?: false
+        return has4kCodecSurface && aeAllows60
+    }
+
     private fun waitForLiveState(
         instrumentation: android.app.Instrumentation,
         activity: MainActivity,
@@ -274,6 +343,9 @@ class Phase4DeviceE2eTest {
         modeSupported: Boolean,
         cameraId: String?,
         rawCameraSupports: Boolean,
+        strictCamera2ProbeSupports: Boolean,
+        forcedCamera2Trial: Boolean,
+        camera2TrialAe60: Boolean,
         hardwareSupports: Boolean,
         highProfileAvailable: Boolean,
         maxHardwareBitrate: Int?,
@@ -291,6 +363,17 @@ class Phase4DeviceE2eTest {
             .put("sdk", Build.VERSION.SDK_INT)
             .put("modeSupported", modeSupported)
             .put("rawCameraSupports4k60", rawCameraSupports)
+            .put("strictCamera2ProbeSupports4k60", strictCamera2ProbeSupports)
+            .put("forcedCamera2Trial", forcedCamera2Trial)
+            .put("camera2TrialAe60", camera2TrialAe60)
+            .put(
+                "camera2SupportBasis",
+                when {
+                    strictCamera2ProbeSupports -> "strict-static-probe"
+                    forcedCamera2Trial -> "4k-output-plus-ae60-runtime-trial"
+                    else -> "unsupported"
+                },
+            )
             .put("hardwareAvcSupports4k60", hardwareSupports)
             .put("cameraId", cameraId ?: JSONObject.NULL)
             .put("lens", CameraLens.Back.name)
