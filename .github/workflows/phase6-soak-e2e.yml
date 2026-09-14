@@ -45,6 +45,12 @@ on:
 permissions:
   contents: read
 
+# Push liên tiếp trong lúc debug chỉ cần giữ run mới nhất. Tách group theo
+# event để một workflow_dispatch soak thủ công về sau không bị push mới hủy.
+concurrency:
+  group: phase6-soak-e2e-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android:
     name: Build app + instrumentation APKs
