@@ -65,6 +65,8 @@ def run(
         check=False,
         timeout=timeout,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=capture_output,
     )
     if check and result.returncode != 0:
