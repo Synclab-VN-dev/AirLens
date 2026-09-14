@@ -174,7 +174,7 @@ jobs:
 
       - name: Validate soak harness
         run: |
-          python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py
+          python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py tools/phase6_reconnect_e2e.py
           ffmpeg -hide_banner -protocols | grep -w srt
 
       - name: Run Phase 6 functional smoke / soak
@@ -194,6 +194,25 @@ jobs:
             --sample-period-seconds "$SAMPLE_PERIOD_SECONDS" \
             --evidence-dir build/phase6-soak-e2e
 
+      - name: Run Phase 6 reconnect functional smoke
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/phase6_reconnect_e2e.py \
+            --adb-serial '${{ steps.lab.outputs.adb_serial }}' \
+            --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
+            --app-apk dist/openstream-android.apk \
+            --test-apk dist/openstream-android-test.apk \
+            --receiver-port 19061 \
+            --duration-seconds 90 \
+            --stream-bitrate-mbps 8 \
+            --capability-bitrate-mbps 30 \
+            --latency-ms "$LATENCY_MS" \
+            --outage-seconds 10 \
+            --fault-after-bytes 4000000 \
+            --evidence-dir build/phase6-reconnect-e2e
+
       - name: Stop test app
         if: always()
         run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
@@ -211,10 +230,12 @@ jobs:
           } > build/phase6-soak-e2e/transport-context.txt
           tailscale status > build/phase6-soak-e2e/tailscale-status.txt 2>&1 || true
 
-      - name: Upload Phase 6 soak evidence
+      - name: Upload Phase 6 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase6-soak-e2e-evidence
-          path: build/phase6-soak-e2e
+          path: |
+            build/phase6-soak-e2e
+            build/phase6-reconnect-e2e
           if-no-files-found: warn
