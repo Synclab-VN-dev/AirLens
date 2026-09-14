@@ -4,7 +4,11 @@
 This harness intentionally keeps throughput acceptance separate from functional
 correctness. It records the observed capture bitrate and device health samples,
 but only a run on a suitable LAN/Wi-Fi environment may be used as the manual
-20-40 Mbps performance evidence required by issue #8/#17.
+20-40 Mbps performance evidence required by issue #8.
+
+For remote functional smoke (for example over Tailscale), 8-19 Mbps is allowed
+so transport/media/telemetry can be exercised without pretending that the run
+satisfies the Phase 6 performance gate.
 """
 
 from __future__ import annotations
@@ -68,8 +72,8 @@ def parse_args(argv: list[str]) -> Config:
         parser.error("--receiver-port phải nằm trong 1..65535")
     if not 60 <= args.duration_seconds <= 3600:
         parser.error("--duration-seconds phải nằm trong 60..3600")
-    if not 20 <= args.stream_bitrate_mbps <= 40:
-        parser.error("--stream-bitrate-mbps phải nằm trong 20..40 cho soak Phase 6")
+    if not 8 <= args.stream_bitrate_mbps <= 40:
+        parser.error("--stream-bitrate-mbps phải nằm trong 8..40; chỉ 20..40 trên LAN/Wi-Fi phù hợp mới tính gate hiệu năng")
     if not 8 <= args.capability_bitrate_mbps <= 50:
         parser.error("--capability-bitrate-mbps phải nằm trong 8..50")
     if not 20 <= args.latency_ms <= 10_000:
@@ -228,6 +232,7 @@ def validate(
         "ANR in dev.openstream.app",
     ]
 
+    requested_bitrate = int(preflight.get("streamBitrateMbps", 0))
     checks = {
         "instrumentation_passed": (
             instrumentation.returncode == 0
@@ -240,7 +245,7 @@ def validate(
             and int(preflight.get("height", 0)) == 2160
             and int(preflight.get("fps", 0)) == 30
         ),
-        "requested_bitrate_in_phase6_range": 20 <= int(preflight.get("streamBitrateMbps", 0)) <= 40,
+        "requested_bitrate_supported": 8 <= requested_bitrate <= 40,
         "video_h264": video.get("codec_name") == "h264",
         "video_3840x2160": int(video.get("width", 0)) == 3840 and int(video.get("height", 0)) == 2160,
         "video_near_30fps": fps is not None and 28.0 <= fps <= 32.0,
@@ -280,6 +285,7 @@ def validate(
                 "requestedDurationSeconds": config.duration_seconds,
                 "capturedDurationSeconds": duration,
                 "requestedBitrateMbps": config.stream_bitrate_mbps,
+                "withinManualPerformanceRange": 20 <= config.stream_bitrate_mbps <= 40,
                 "captureAverageMbps": capture_mbps,
                 "medianKeyframeIntervalSeconds": median_keyframe,
                 "healthSampleCount": health_text.count("===== "),
@@ -291,8 +297,7 @@ def validate(
         "performanceGate": {
             "included": False,
             "reason": (
-                "Harness records requested/observed bitrate and long-run health. "
-                "Issue #17 still requires confirming this run used a suitable LAN/Wi-Fi path before it counts as the 20-40 Mbps performance acceptance."
+                "Harness records requested/observed bitrate and long-run health, but only a run verified on suitable LAN/Wi-Fi at 20-40 Mbps counts as the Phase 6 performance acceptance. Tailscale runs are functional evidence only."
             ),
         },
     }
