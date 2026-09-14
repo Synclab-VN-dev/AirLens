@@ -43,10 +43,20 @@ jobs:
     name: Build app + instrumentation APKs
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out PR integration result
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: refs/pull/14/merge
+          fetch-depth: 2
+
+      - name: Verify Phase 4 integration baseline
+        run: |
+          set -euo pipefail
+          echo "Integration HEAD: $(git rev-parse HEAD)"
+          echo "Parents: $(git show -s --format='%P' HEAD)"
+          test "$(git show -s --format='%P' HEAD | wc -w)" -ge 2
+          git log -1 --oneline
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -106,10 +116,19 @@ jobs:
       DURATION_SECONDS: ${{ inputs.duration_seconds || '15' }}
       LATENCY_MS: ${{ inputs.latency_ms || '2000' }}
     steps:
-      - name: Check out repository
+      - name: Check out PR integration result
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: refs/pull/14/merge
+          fetch-depth: 2
+
+      - name: Verify Phase 4 integration baseline
+        run: |
+          set -euo pipefail
+          echo "Integration HEAD: $(git rev-parse HEAD)"
+          echo "Parents: $(git show -s --format='%P' HEAD)"
+          test "$(git show -s --format='%P' HEAD | wc -w)" -ge 2
 
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
