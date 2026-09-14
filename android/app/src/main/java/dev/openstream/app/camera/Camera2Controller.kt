@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
  * capture sessions. It handles:
  *
  * - Opening / closing camera devices when the selected lens changes.
- * - Creating preview-only or preview+encode sessions.
+ * - Creating preview-only, encode-only or preview+encode sessions.
  * - Pinch-to-zoom via crop region or CONTROL_ZOOM_RATIO.
  * - Enumerating available physical lenses.
  */
@@ -313,7 +313,8 @@ class Camera2Controller(
                             return
                         }
                         val previewReady = runCatching { previewSurfaceProvider().isValid }.getOrDefault(false)
-                        if (!previewReady) return
+                        val encoderReady = streamingSurface?.isValid == true
+                        if (!previewReady && !encoderReady) return
                         cancelCameraRecoveryLocked()
                         startPreviewLocked()
                     }
@@ -381,18 +382,26 @@ class Camera2Controller(
 
     private fun createSession() {
         val device = camera ?: return
-        val preview = runCatching { previewSurfaceProvider() }.getOrNull()
-        if (preview == null || !preview.isValid) {
-            Log.w(TAG, "Deferring camera session until preview surface is valid")
-            return
-        }
+        val preview = runCatching { previewSurfaceProvider() }
+            .getOrNull()
+            ?.takeIf { it.isValid }
         val encoded = streamingSurface
         if (encoded != null && !encoded.isValid) {
             Log.w(TAG, "Deferring camera session until encoder surface is valid")
             return
         }
+        if (preview == null && encoded == null) {
+            sessionGeneration.incrementAndGet()
+            session?.close()
+            session = null
+            Log.w(TAG, "Deferring camera session until a preview or encoder surface is valid")
+            return
+        }
+        if (preview == null && encoded != null) {
+            Log.i(TAG, "Preview surface unavailable; using encoder-only camera session")
+        }
         val generation = sessionGeneration.incrementAndGet()
-        val surfaces = if (encoded != null) listOf(preview, encoded) else listOf(preview)
+        val surfaces = listOfNotNull(preview, encoded)
         session?.close()
         session = null
         try {
@@ -414,10 +423,8 @@ class Camera2Controller(
                             }
                             runCatching {
                                 val request = device.createCaptureRequest(template).apply {
-                                    addTarget(preview)
-                                    if (encoded != null) {
-                                        addTarget(encoded)
-                                    }
+                                    preview?.let { addTarget(it) }
+                                    encoded?.let { addTarget(it) }
                                     set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
                                     set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
                                     set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
@@ -518,22 +525,24 @@ class Camera2Controller(
         val device = camera ?: return
         val currentSession = session ?: return
         val generation = sessionGeneration.get()
-        val preview = runCatching { previewSurfaceProvider() }.getOrNull()
-        if (preview == null || !preview.isValid) {
-            Log.w(TAG, "Deferring camera request rebuild until preview surface is valid")
-            return
-        }
+        val preview = runCatching { previewSurfaceProvider() }
+            .getOrNull()
+            ?.takeIf { it.isValid }
         val encoded = streamingSurface
         if (encoded != null && !encoded.isValid) {
             Log.w(TAG, "Deferring camera request rebuild until encoder surface is valid")
+            return
+        }
+        if (preview == null && encoded == null) {
+            Log.w(TAG, "Deferring camera request rebuild until a preview or encoder surface is valid")
             return
         }
         val template = if (encoded != null) CameraDevice.TEMPLATE_RECORD else CameraDevice.TEMPLATE_PREVIEW
 
         runCatching {
             val request = device.createCaptureRequest(template).apply {
-                addTarget(preview)
-                if (encoded != null) addTarget(encoded)
+                preview?.let { addTarget(it) }
+                encoded?.let { addTarget(it) }
                 set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
                 set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)

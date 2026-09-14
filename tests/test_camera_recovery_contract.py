@@ -124,23 +124,33 @@ def test_capture_session_failures_recover_only_current_camera():
     assert recovery.index("closeCamera()") < recovery.index("watchForCameraAvailability(cameraId)")
 
 
-def test_session_reconfigure_defers_invalid_output_surfaces_before_teardown():
+def test_session_reconfigure_validates_outputs_before_teardown_and_allows_encoder_only():
     create_session = _block_after(SOURCE, "private fun createSession()")
-    assert "runCatching { previewSurfaceProvider() }.getOrNull()" in create_session
-    assert "preview == null || !preview.isValid" in create_session
+    assert "runCatching { previewSurfaceProvider() }" in create_session
+    assert "?.takeIf { it.isValid }" in create_session
     assert "encoded != null && !encoded.isValid" in create_session
-    assert create_session.index("preview == null || !preview.isValid") < create_session.index(
-        "sessionGeneration.incrementAndGet()"
-    )
+    assert "preview == null && encoded == null" in create_session
+    assert "val surfaces = listOfNotNull(preview, encoded)" in create_session
+    assert "preview?.let { addTarget(it) }" in create_session
+    assert "encoded?.let { addTarget(it) }" in create_session
     assert create_session.index("encoded != null && !encoded.isValid") < create_session.index(
+        "session?.close()"
+    )
+    assert create_session.index("preview == null && encoded == null") < create_session.index(
         "session?.close()"
     )
 
     rebuild = _block_after(SOURCE, "private fun rebuildRepeatingRequest()")
-    assert "runCatching { previewSurfaceProvider() }.getOrNull()" in rebuild
-    assert "preview == null || !preview.isValid" in rebuild
+    assert "runCatching { previewSurfaceProvider() }" in rebuild
+    assert "?.takeIf { it.isValid }" in rebuild
     assert "encoded != null && !encoded.isValid" in rebuild
-    assert rebuild.index("preview == null || !preview.isValid") < rebuild.index(
+    assert "preview == null && encoded == null" in rebuild
+    assert "preview?.let { addTarget(it) }" in rebuild
+    assert "encoded?.let { addTarget(it) }" in rebuild
+    assert rebuild.index("encoded != null && !encoded.isValid") < rebuild.index(
+        "device.createCaptureRequest(template)"
+    )
+    assert rebuild.index("preview == null && encoded == null") < rebuild.index(
         "device.createCaptureRequest(template)"
     )
 
