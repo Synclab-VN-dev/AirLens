@@ -59,29 +59,23 @@ jobs:
   build-android:
     name: Build app + instrumentation APKs
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install Android build packages
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
-
       - name: Compute Android version metadata
         id: version
         run: echo "code=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
-
       - name: Build streaming app and instrumentation APKs
         working-directory: android
         env:
@@ -90,13 +84,11 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
-
       - name: Normalize APK names
         run: |
           mkdir -p dist
           cp android/app/build/outputs/apk/debug/app-debug.apk dist/openstream-android.apk
           cp android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk dist/openstream-android-test.apk
-
       - name: Upload device-test APKs
         uses: actions/upload-artifact@v4
         with:
@@ -108,13 +100,11 @@ jobs:
     name: Build OBS plugin for hosted Windows acceptance
     if: ${{ github.event_name == 'push' || inputs.runner_os == 'windows' }}
     runs-on: windows-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Install OBS Studio 32.2.1 SDK/runtime
         shell: powershell
         run: |
@@ -129,20 +119,17 @@ jobs:
           if ($actual -ne $expected) { throw "OBS Studio checksum mismatch" }
           Expand-Archive -Path $archive -DestinationPath $destination
           "OPENSTREAM_OBS_INSTALL=$destination" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Install matching Qt development files
         shell: powershell
         run: |
           python -m pip install --disable-pip-version-check aqtinstall
           python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:\Qt
           "OPENSTREAM_QT_ROOT=C:\Qt\6.8.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Build plugin DLL
         shell: cmd
         run: |
           set OPENSTREAM_SKIP_INSTALL=1
           call build_plugin.bat
-
       - name: Upload exact plugin under test
         uses: actions/upload-artifact@v4
         with:
@@ -164,16 +151,13 @@ jobs:
       STREAM_BITRATE_MBPS: ${{ inputs.stream_bitrate_mbps || '8' }}
       CAPABILITY_BITRATE_MBPS: ${{ inputs.capability_bitrate_mbps || '30' }}
       LATENCY_MS: ${{ inputs.latency_ms || '120' }}
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Set up Android platform tools
         uses: android-actions/setup-android@v3
-
       - name: Restore trusted ADB identity
         shell: powershell
         env:
@@ -195,8 +179,15 @@ jobs:
           $publicKey = $env:OPENSTREAM_ADB_PUBLIC_KEY.TrimEnd("`r", "`n") + "`n"
           [System.IO.File]::WriteAllText((Join-Path $adbDir 'adbkey'), $privateKey, $utf8NoBom)
           [System.IO.File]::WriteAllText((Join-Path $adbDir 'adbkey.pub'), $publicKey, $utf8NoBom)
-          adb kill-server 2>$null
-          Write-Host 'Restored trusted ADB identity for the ephemeral hosted runner.'
+
+          Get-Process adb -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Milliseconds 500
+          & adb start-server
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not start ADB server with restored trusted identity'
+          }
+          Write-Host 'Restored trusted ADB identity and started a fresh ADB server.'
 
       - name: Join the OpenStream CI node to Tailscale
         uses: tailscale/github-action@v4
@@ -204,19 +195,16 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:openstream-ci
-
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
         with:
           name: phase5-device-apks
           path: dist
-
       - name: Download exact OBS plugin DLL
         uses: actions/download-artifact@v4
         with:
           name: phase5-obs-plugin-windows
           path: dist/obs-plugin
-
       - name: Install OBS Studio 32.2.1 runtime and plugin
         shell: powershell
         run: |
@@ -235,9 +223,7 @@ jobs:
           $pluginDir = Join-Path $destination "obs-plugins\64bit"
           New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
           Copy-Item -LiteralPath $plugin -Destination (Join-Path $pluginDir "openstream-obs.dll") -Force
-
           "PHASE5_OBS_ROOT=$destination" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Enable local OBS WebSocket control for CI bootstrap
         shell: powershell
         run: |
@@ -253,7 +239,6 @@ jobs:
           }
           '@ | Set-Content -LiteralPath (Join-Path $configDir "config.json") -Encoding utf8
           python -m pip install --disable-pip-version-check obsws-python
-
       - name: Resolve Tailscale path to Android and open SRT firewall
         shell: powershell
         run: |
@@ -266,11 +251,17 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($receiverHost)) {
             $receiverHost = ((tailscale ip -4) | Select-Object -First 1).Trim()
           }
-          if ([string]::IsNullOrWhiteSpace($receiverHost)) { throw 'Could not resolve hosted runner Tailscale IPv4' }
+          if ([string]::IsNullOrWhiteSpace($receiverHost)) {
+            throw 'Could not resolve hosted runner Tailscale IPv4'
+          }
 
-          adb connect $env:ADB_SERIAL_INPUT | Write-Host
-          $state = (adb -s $env:ADB_SERIAL_INPUT get-state 2>$null).Trim()
-          if ($state -ne 'device') { throw "ADB device is not online through Tailscale: $env:ADB_SERIAL_INPUT ($state)" }
+          $connectOutput = & adb connect $env:ADB_SERIAL_INPUT 2>&1
+          $connectOutput | Write-Host
+          $stateOutput = & adb -s $env:ADB_SERIAL_INPUT get-state 2>&1
+          $state = ($stateOutput | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $state -ne 'device') {
+            throw "ADB device is not online through Tailscale: $env:ADB_SERIAL_INPUT ($state)"
+          }
 
           New-NetFirewallRule `
             -DisplayName "OpenStream Phase5 SRT" `
@@ -281,10 +272,8 @@ jobs:
 
           "PHASE5_ADB_SERIAL=$env:ADB_SERIAL_INPUT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "PHASE5_RECEIVER_HOST=$receiverHost" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
           Write-Host "Android: $(adb -s $env:ADB_SERIAL_INPUT shell getprop ro.product.model)"
           Write-Host "Hosted Windows Tailscale IPv4: $receiverHost"
-
       - name: Start real OBS and create OpenStream source
         shell: powershell
         run: |
@@ -365,7 +354,6 @@ jobs:
           "PHASE5_OBS_LOG=$($obsLog.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "OBS PID: $($obs.Id)"
           Write-Host "OBS log: $($obsLog.FullName)"
-
       - name: Run Phase 5 functional acceptance
         shell: powershell
         run: |
@@ -382,7 +370,6 @@ jobs:
             --latency-ms "$env:LATENCY_MS" `
             --evidence-dir build/phase5-obs-e2e
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Collect hosted OBS diagnostics
         if: always()
         shell: powershell
@@ -391,15 +378,20 @@ jobs:
           if ($env:PHASE5_OBS_LOG -and (Test-Path -LiteralPath $env:PHASE5_OBS_LOG)) {
             Copy-Item -LiteralPath $env:PHASE5_OBS_LOG -Destination build/phase5-obs-e2e/obs-full.log -Force
           }
-          tailscale status | Out-File build/phase5-obs-e2e/tailscale-status.txt -Encoding utf8
+          $tailscale = Get-Command tailscale -ErrorAction SilentlyContinue
+          if ($tailscale) {
+            tailscale status | Out-File build/phase5-obs-e2e/tailscale-status.txt -Encoding utf8
+          } else {
+            'Tailscale was not initialized before this failure.' |
+              Out-File build/phase5-obs-e2e/tailscale-status.txt -Encoding utf8
+          }
           if ($env:PHASE5_ADB_SERIAL) {
-            adb -s "$env:PHASE5_ADB_SERIAL" shell am force-stop dev.openstream.app 2>$null
+            & adb -s "$env:PHASE5_ADB_SERIAL" shell am force-stop dev.openstream.app 2>$null
           }
           if ($env:PHASE5_OBS_PID) {
             Stop-Process -Id ([int]$env:PHASE5_OBS_PID) -Force -ErrorAction SilentlyContinue
           }
         continue-on-error: true
-
       - name: Upload Phase 5 OBS evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -414,19 +406,16 @@ jobs:
     needs: build-android
     runs-on: [self-hosted, linux, openstream-device-lab]
     timeout-minutes: 20
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
         with:
           name: phase5-device-apks
           path: dist
-
       - name: Verify OBS lab prerequisites
         run: |
           set -euo pipefail
@@ -434,7 +423,6 @@ jobs:
           command -v adb
           test -f "${{ inputs.obs_log_path }}"
           python3 -m py_compile tools/phase5_obs_e2e.py
-
       - name: Run Phase 5 OBS acceptance
         run: |
           set -euo pipefail
@@ -450,11 +438,9 @@ jobs:
             --capability-bitrate-mbps "${{ inputs.capability_bitrate_mbps }}" \
             --latency-ms "${{ inputs.latency_ms }}" \
             --evidence-dir build/phase5-obs-e2e
-
       - name: Stop test app
         if: always()
         run: adb -s "${{ inputs.adb_serial }}" shell am force-stop dev.openstream.app || true
-
       - name: Upload Phase 5 OBS evidence
         if: always()
         uses: actions/upload-artifact@v4
