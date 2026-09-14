@@ -3,14 +3,6 @@ name: Phase 3 Device E2E
 on:
   workflow_dispatch:
     inputs:
-      adb_serial:
-        description: "ADB serial của Android, ví dụ 100.68.1.23:5555"
-        required: true
-        type: string
-      receiver_host:
-        description: "IP Linux mà Android truy cập được, thường là Tailscale IPv4"
-        required: true
-        type: string
       stream_bitrate_mbps:
         description: "Bitrate E2E mạng; dùng 8 khi Tailscale chậm"
         required: true
@@ -31,9 +23,20 @@ on:
         required: true
         default: "2000"
         type: string
+  push:
+    branches:
+      - phase-3-4k30-mic-path
+    paths:
+      - .github/workflows/phase3-device-e2e.yml
+      - android/**
+      - tools/phase3_device_e2e.py
 
 permissions:
   contents: read
+
+concurrency:
+  group: phase3-openstream-device-lab
+  cancel-in-progress: false
 
 jobs:
   build-apks:
@@ -46,7 +49,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -88,6 +91,12 @@ jobs:
     needs: build-apks
     runs-on: [self-hosted, linux, openstream-device-lab]
     timeout-minutes: 12
+    env:
+      OPENSTREAM_ANDROID_ADB_ENDPOINT: ${{ vars.OPENSTREAM_ANDROID_ADB_ENDPOINT }}
+      STREAM_BITRATE_MBPS: ${{ inputs.stream_bitrate_mbps || '8' }}
+      CAPABILITY_BITRATE_MBPS: ${{ inputs.capability_bitrate_mbps || '30' }}
+      DURATION_SECONDS: ${{ inputs.duration_seconds || '15' }}
+      LATENCY_MS: ${{ inputs.latency_ms || '2000' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -100,27 +109,63 @@ jobs:
           name: phase3-device-e2e-apks
           path: dist
 
+      - name: Resolve T1 and T2 topology
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${OPENSTREAM_ANDROID_ADB_ENDPOINT:-}" ]]; then
+            echo "Repository variable OPENSTREAM_ANDROID_ADB_ENDPOINT chưa được cấu hình." >&2
+            exit 1
+          fi
+
+          receiver_host="$(tailscale ip -4 | head -n 1 | tr -d '[:space:]')"
+          if [[ -z "$receiver_host" ]]; then
+            echo "Không lấy được Tailscale IPv4 của T2." >&2
+            exit 1
+          fi
+
+          adb connect "$OPENSTREAM_ANDROID_ADB_ENDPOINT"
+          state="$(adb -s "$OPENSTREAM_ANDROID_ADB_ENDPOINT" get-state | tr -d '[:space:]')"
+          if [[ "$state" != "device" ]]; then
+            echo "T1 chưa sẵn sàng qua ADB: $state" >&2
+            exit 1
+          fi
+
+          echo "adb_serial=$OPENSTREAM_ANDROID_ADB_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "receiver_host=$receiver_host" >> "$GITHUB_OUTPUT"
+          echo "Đã xác nhận T1 qua remote ADB và T2 có Tailscale IPv4."
+
       - name: Verify Linux lab prerequisites
         run: |
+          set -euo pipefail
           python3 --version
           adb version
+          tailscale version | head -n 1
           ffmpeg -version | head -n 1
           ffprobe -version | head -n 1
+          ffmpeg -hide_banner -protocols | grep -w srt >/dev/null
           python3 -m py_compile tools/phase3_device_e2e.py
 
       - name: Run Phase 3 device acceptance
         run: |
+          set -euo pipefail
           python3 tools/phase3_device_e2e.py \
-            --adb-serial '${{ inputs.adb_serial }}' \
-            --receiver-host '${{ inputs.receiver_host }}' \
+            --adb-serial '${{ steps.topology.outputs.adb_serial }}' \
+            --receiver-host '${{ steps.topology.outputs.receiver_host }}' \
             --app-apk dist/openstream-android.apk \
             --test-apk dist/openstream-android-test.apk \
             --receiver-port 19000 \
-            --stream-bitrate-mbps '${{ inputs.stream_bitrate_mbps }}' \
-            --capability-bitrate-mbps '${{ inputs.capability_bitrate_mbps }}' \
-            --duration-seconds '${{ inputs.duration_seconds }}' \
-            --latency-ms '${{ inputs.latency_ms }}' \
+            --stream-bitrate-mbps "$STREAM_BITRATE_MBPS" \
+            --capability-bitrate-mbps "$CAPABILITY_BITRATE_MBPS" \
+            --duration-seconds "$DURATION_SECONDS" \
+            --latency-ms "$LATENCY_MS" \
             --evidence-dir build/phase3-device-e2e
+
+      - name: Stop test app
+        if: always()
+        run: |
+          adb -s '${{ steps.topology.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
 
       - name: Upload Phase 3 device evidence
         if: always()
