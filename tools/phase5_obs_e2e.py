@@ -25,6 +25,7 @@ APP_ID = "dev.openstream.app"
 TEST_PACKAGE = "dev.openstream.app.test"
 RUNNER = "androidx.test.runner.AndroidJUnitRunner"
 TEST_CLASS = "dev.openstream.app.Phase3DeviceE2eTest#stream4k30WithMicrophoneToSrtReceiver"
+PREFLIGHT_FILE = "phase3-device-e2e-preflight.json"
 
 RECEIVE_RE = re.compile(
     r"\[OpenStream\] Receiving (?P<width>\d+)x(?P<height>\d+) video stream "
@@ -168,14 +169,38 @@ def run_instrumentation(config: Config, output_path: Path) -> subprocess.Complet
 
 def instrumentation_passed(result: subprocess.CompletedProcess[str]) -> bool:
     text = (result.stdout or "") + (result.stderr or "")
-    return result.returncode == 0 and "FAILURES!!!" not in text and "Process crashed" not in text
+    return (
+        result.returncode == 0
+        and "FAILURES!!!" not in text
+        and "INSTRUMENTATION_FAILED" not in text
+        and "Process crashed" not in text
+    )
+
+
+def collect_preflight(config: Config) -> dict[str, Any]:
+    result = adb(
+        config,
+        "shell",
+        "run-as",
+        APP_ID,
+        "cat",
+        f"files/{PREFLIGHT_FILE}",
+        check=False,
+    )
+    text = result.stdout.strip()
+    if not text:
+        return {}
+    (config.evidence_dir / PREFLIGHT_FILE).write_text(text + "\n", encoding="utf-8")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {}
 
 
 def parse_obs_log(text: str, *, require_reconnect: bool = True) -> dict[str, Any]:
     receives: list[dict[str, Any]] = []
     audios: list[dict[str, Any]] = []
     outputs: list[dict[str, Any]] = []
-    reconnect_positions: list[int] = []
 
     for match in RECEIVE_RE.finditer(text):
         receives.append({
@@ -260,21 +285,40 @@ def main(argv: list[str]) -> int:
     second = run_instrumentation(config, config.evidence_dir / "instrumentation-2.txt")
     time.sleep(2)
 
+    preflight = collect_preflight(config)
     adb(config, "shell", "am", "force-stop", APP_ID, check=False)
     device_log = adb(config, "logcat", "-d", "-v", "threadtime", check=False).stdout
     (config.evidence_dir / "device-logcat.txt").write_text(device_log, encoding="utf-8")
 
+    current_size = config.obs_log.stat().st_size
     with config.obs_log.open("rb") as handle:
-        handle.seek(log_offset)
+        handle.seek(log_offset if current_size >= log_offset else 0)
         obs_tail = handle.read().decode("utf-8", errors="replace")
-    # Giữ marker plugin-loaded trong bằng chứng để parser có thể xác nhận đúng module.
+    # Giữ marker plugin-loaded trong evidence ngay cả khi nó nằm trước offset phiên test.
     obs_evidence = PLUGIN_LOADED + "\n" + obs_tail
     (config.evidence_dir / "obs-session.log").write_text(obs_evidence, encoding="utf-8")
 
     parsed = parse_obs_log(obs_evidence, require_reconnect=True)
-    parsed["instrumentation1Passed"] = instrumentation_passed(first)
-    parsed["instrumentation2Passed"] = instrumentation_passed(second)
-    parsed["passed"] = bool(parsed["passed"] and parsed["instrumentation1Passed"] and parsed["instrumentation2Passed"])
+    sender_4k30 = (
+        int(preflight.get("width", 0)) == 3840
+        and int(preflight.get("height", 0)) == 2160
+        and int(preflight.get("fps", 0)) == 30
+        and int(preflight.get("capabilityBitrateMbps", 0)) == config.capability_bitrate_mbps
+    )
+    android_gates = {
+        "instrumentation1Passed": instrumentation_passed(first),
+        "instrumentation2Passed": instrumentation_passed(second),
+        "sender4k30Capability": sender_4k30,
+        "hardwareVideoEncoderLogged": "Using hardware encoder" in device_log,
+        "microphoneCaptureStarted": "Using audio source" in device_log,
+        "noVideoEncoderFailure": (
+            "MediaCodec encoder error" not in device_log
+            and "No hardware surface encoder" not in device_log
+        ),
+    }
+    parsed["androidGates"] = android_gates
+    parsed["preflight"] = preflight
+    parsed["passed"] = bool(parsed["passed"] and all(android_gates.values()))
     parsed["config"] = {
         **asdict(config),
         "obs_log": str(config.obs_log),
