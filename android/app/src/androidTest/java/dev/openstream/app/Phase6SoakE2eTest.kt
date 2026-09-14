@@ -25,6 +25,10 @@ import java.io.File
  * Soak test Phase 6. Test giữ một phiên 4K30 + micro liên tục thay vì lặp các
  * phiên ngắn. Host-side harness chịu trách nhiệm thu MPEG-TS, ffprobe, logcat,
  * bộ nhớ và nhiệt độ trong suốt thời gian chạy.
+ *
+ * Test cho phép bitrate chức năng thấp hơn dải nghiệm thu hiệu năng 20–40 Mbps
+ * để có thể chạy smoke qua mạng trung gian như Tailscale. Chỉ run LAN/Wi-Fi phù
+ * hợp ở 20–40 Mbps mới được dùng làm evidence hiệu năng của Giai đoạn 6.
  */
 @RunWith(AndroidJUnit4::class)
 class Phase6SoakE2eTest {
@@ -41,7 +45,7 @@ class Phase6SoakE2eTest {
             ?.coerceIn(MIN_DURATION_SECONDS, MAX_DURATION_SECONDS)
             ?: DEFAULT_DURATION_SECONDS
         val streamBitrateMbps = args.getString(ARG_STREAM_BITRATE_MBPS)?.toIntOrNull()
-            ?.coerceIn(MIN_SOAK_BITRATE_MBPS, MAX_SOAK_BITRATE_MBPS)
+            ?.coerceIn(MIN_FUNCTIONAL_BITRATE_MBPS, MAX_SOAK_BITRATE_MBPS)
             ?: DEFAULT_STREAM_BITRATE_MBPS
         val capabilityBitrateMbps = args.getString(ARG_CAPABILITY_BITRATE_MBPS)?.toIntOrNull()
             ?.coerceIn(StreamConfig.MIN_BITRATE_MBPS, StreamConfig.MAX_BITRATE_MBPS)
@@ -76,7 +80,7 @@ class Phase6SoakE2eTest {
         val networkModes = StreamingCapabilityResolver(context)
             .resolve(streamBitrateMbps * 1_000_000)
         assertTrue(
-            "The physical 4K30 path must support soak bitrate $streamBitrateMbps Mbps",
+            "The physical 4K30 path must support functional bitrate $streamBitrateMbps Mbps",
             networkModes.any {
                 it.cameraId == targetMode.cameraId &&
                     it.width == TARGET_WIDTH &&
@@ -231,7 +235,7 @@ class Phase6SoakE2eTest {
         private const val MIN_DURATION_SECONDS = 60
         private const val MAX_DURATION_SECONDS = 3_600
         private const val DEFAULT_STREAM_BITRATE_MBPS = 30
-        private const val MIN_SOAK_BITRATE_MBPS = 20
+        private const val MIN_FUNCTIONAL_BITRATE_MBPS = StreamConfig.MIN_BITRATE_MBPS
         private const val MAX_SOAK_BITRATE_MBPS = 40
         private const val DEFAULT_CAPABILITY_BITRATE_MBPS = 30
         private const val DEFAULT_LATENCY_MS = 2_000
