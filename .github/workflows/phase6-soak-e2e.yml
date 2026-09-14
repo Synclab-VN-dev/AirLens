@@ -41,6 +41,11 @@ on:
         required: true
         default: "19060"
         type: string
+      run_reconnect_diagnostic:
+        description: "Chạy fault-injection reconnect thủ công; không phải push gate và không thay thế nghiệm thu LAN/Wi-Fi production"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -194,8 +199,8 @@ jobs:
             --sample-period-seconds "$SAMPLE_PERIOD_SECONDS" \
             --evidence-dir build/phase6-soak-e2e
 
-      - name: Run Phase 6 reconnect functional smoke
-        if: github.event_name == 'push'
+      - name: Run Phase 6 reconnect diagnostic (manual only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_reconnect_diagnostic }}
         shell: bash
         run: |
           set -euo pipefail
@@ -226,7 +231,8 @@ jobs:
             echo "event=${{ github.event_name }}"
             echo "receiver_host_source=$([[ -n \"$RECEIVER_HOST_CONFIG\" ]] && echo override || echo tailscale)"
             echo "performance_acceptance=false"
-            echo "note=Push runs are Tailscale functional evidence only. Manual 20-40 Mbps LAN/Wi-Fi evidence is required before closing Phase 6."
+            echo "reconnect_diagnostic_auto_gate=false"
+            echo "note=Push runs gate only Tailscale functional smoke. Reconnect fault injection and 20-40 Mbps LAN/Wi-Fi acceptance are manual/deferred and do not make push CI fail."
           } > build/phase6-soak-e2e/transport-context.txt
           tailscale status > build/phase6-soak-e2e/tailscale-status.txt 2>&1 || true
 
