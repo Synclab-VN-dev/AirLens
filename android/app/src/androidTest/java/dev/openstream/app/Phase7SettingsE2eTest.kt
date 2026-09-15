@@ -23,6 +23,53 @@ import org.junit.runner.RunWith
 class Phase7SettingsE2eTest {
 
     @Test
+    fun currentConfigCanBeSavedWithoutCreatingProfile() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val base = StreamConfig.Baseline1080p30
+        StreamConfigStore.save(context, base)
+        StreamConfig.installRuntimeConfig(base)
+        StreamProfileStore.clear(context)
+
+        val baselineModes = StreamingCapabilityResolver(context).resolve(base)
+        assertTrue("Device must expose at least one Camera2 + hardware AVC mode", baselineModes.isNotEmpty())
+        val lens = baselineModes.first().lens
+        context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(SettingsActivity.KEY_CAPABILITY_LENS, lens.name)
+            .putString(SettingsActivity.KEY_OBS_HOST, "")
+            .putInt(SettingsActivity.KEY_OBS_PORT, ConnectionTarget.DEFAULT_PORT)
+            .putInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
+            .apply()
+
+        val activity = instrumentation.startActivitySync(
+            Intent(context, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            },
+        ) as SettingsActivity
+        instrumentation.waitForIdleSync()
+
+        val profileSpinner = activity.findViewById<Spinner>(R.id.settingsProfile)
+        val saveSettings = activity.findViewById<TextView>(R.id.btnSaveSettings)
+
+        instrumentation.runOnMainSync {
+            assertTrue("Saving the current config must not require a profile", saveSettings.isEnabled)
+            assertTrue(
+                "Empty profile state must explain that direct config editing is still available",
+                profileSpinner.getItemAtPosition(0).toString().contains("vẫn sửa config"),
+            )
+            saveSettings.performClick()
+        }
+        instrumentation.waitForIdleSync()
+
+        assertTrue("Saving current config must not create a profile", StreamProfileStore.list(context).isEmpty())
+        assertEquals(base.width, StreamConfigStore.load(context).width)
+        assertEquals(base.height, StreamConfigStore.load(context).height)
+        assertEquals(base.fps, StreamConfigStore.load(context).fps)
+        StreamProfileStore.clear(context)
+    }
+
+    @Test
     fun profileCrudPresetSelectionAndCapabilityReasonsWorkOnRealDevice() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
