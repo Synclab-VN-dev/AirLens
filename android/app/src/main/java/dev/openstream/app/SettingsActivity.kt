@@ -104,6 +104,10 @@ class SettingsActivity : Activity() {
         btnBack = findViewById(R.id.btnBackSettings)
         versionInfo = findViewById(R.id.settingsVersionInfo)
 
+        profileName.hint = "Tên profile (chỉ cần khi muốn lưu profile)"
+        btnUseProfile.text = "Áp dụng"
+        btnSaveProfile.text = "Lưu profile"
+
         val config = loadSettings()
         setupEncodingSelectors(config)
         setupCapabilitySelectors(config)
@@ -163,29 +167,52 @@ class SettingsActivity : Activity() {
     }
 
     private fun setupCapabilitySelectors(config: StreamConfig, preferredLens: CameraLens? = null) {
+        val resolver = StreamingCapabilityResolver(this)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val savedLens = prefs.getString(KEY_CAPABILITY_LENS, null)
+            ?.let { name -> runCatching { CameraLens.valueOf(name) }.getOrNull() }
+
+        var capabilityReadError: String? = null
         supportedModes = runCatching {
-            StreamingCapabilityResolver(this).resolve(config)
+            resolver.resolve(config)
         }.getOrElse { error ->
-            capabilityNote.text = "Không đọc được khả năng camera/bộ mã hóa: ${error.message ?: "lỗi không xác định"}"
+            capabilityReadError = error.message ?: "lỗi không xác định"
             emptyList()
         }
 
+        val usingRecoveryModes = supportedModes.isEmpty()
+        if (usingRecoveryModes) {
+            val recoveryConfig = config.copy(
+                bitrate = StreamConfig.Baseline1080p30.bitrate,
+                videoBitrateMode = VideoBitrateMode.Cbr,
+                avcProfilePreference = AvcProfilePreference.Auto,
+            )
+            supportedModes = runCatching { resolver.resolve(recoveryConfig) }.getOrDefault(emptyList())
+        }
+
+        // Không khóa nút lưu chỉ vì cấu hình cũ đang unsupported. Người dùng phải
+        // luôn có đường sửa cấu hình rồi lưu lại; readValidatedSettings() sẽ kiểm
+        // chính cấu hình mới tại thời điểm bấm Lưu/Lưu & kết nối.
+        btnSave.isEnabled = true
+        btnSaveAndConnect.isEnabled = true
+
         if (supportedModes.isEmpty()) {
+            selectedCapabilityLens = preferredLens ?: savedLens ?: CameraLens.Back
             capabilityLens.isEnabled = false
             capabilityMode.isEnabled = false
             presetSpinner.isEnabled = false
-            btnSave.isEnabled = false
-            btnSaveAndConnect.isEnabled = false
-            capabilityNote.text = "Không tìm thấy tổ hợp Camera2 + H.264 phần cứng hợp lệ ở cấu hình hiện tại."
-            presetNote.text = "Không thể đánh giá preset vì chưa có mode Camera2 + H.264 hợp lệ."
+            capabilityNote.text = if (capabilityReadError != null) {
+                "Không đọc được khả năng camera/bộ mã hóa: $capabilityReadError. Anh vẫn có thể sửa cấu hình; app sẽ kiểm tra lại khi bấm Lưu."
+            } else {
+                "Cấu hình hiện tại chưa được Camera2 + H.264 phần cứng xác nhận. Anh vẫn có thể sửa bitrate/chế độ/profile rồi bấm Lưu cấu hình để kiểm tra lại."
+            }
+            presetNote.text = "Preset tạm thời chưa khả dụng; profile không bắt buộc để sửa hoặc lưu cấu hình."
             return
         }
 
         capabilityLens.isEnabled = true
         capabilityMode.isEnabled = true
         presetSpinner.isEnabled = true
-        btnSave.isEnabled = true
-        btnSaveAndConnect.isEnabled = true
         capabilityLenses = supportedModes.map { it.lens }.distinct()
         capabilityLens.adapter = ArrayAdapter(
             this,
@@ -193,9 +220,6 @@ class SettingsActivity : Activity() {
             capabilityLenses.map { it.displayName },
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val savedLens = prefs.getString(KEY_CAPABILITY_LENS, null)
-            ?.let { name -> runCatching { CameraLens.valueOf(name) }.getOrNull() }
         val matchingLens = capabilityLenses.firstOrNull { it == preferredLens }
             ?: capabilityLenses.firstOrNull { lens ->
                 lens == savedLens || supportedModes.any {
@@ -219,6 +243,10 @@ class SettingsActivity : Activity() {
         selectedCapabilityLens = matchingLens
         updateModeSpinner(matchingLens, config)
         updatePresetOptions(matchingLens)
+
+        if (usingRecoveryModes) {
+            capabilityNote.text = "Cấu hình cũ chưa được xác nhận. App đã mở các mode an toàn để anh chọn lại; chưa có gì được ghi cho tới khi bấm Lưu cấu hình."
+        }
     }
 
     private fun updateModeSpinner(lens: CameraLens, preferred: StreamConfig) {
@@ -352,7 +380,7 @@ class SettingsActivity : Activity() {
             this,
             android.R.layout.simple_spinner_item,
             if (profiles.isEmpty()) {
-                listOf("Chưa có profile")
+                listOf("Không có profile · vẫn sửa config bình thường")
             } else {
                 profiles.map { profile -> if (profile.id == activeId) "★ ${profile.name}" else profile.name }
             },
@@ -389,7 +417,7 @@ class SettingsActivity : Activity() {
         selectedProfileId = null
         profileName.setText("")
         profileName.requestFocus()
-        Toast.makeText(this, "Nhập tên rồi bấm Lưu để tạo profile mới", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Profile là tùy chọn. Nhập tên rồi bấm Lưu profile nếu muốn lưu riêng cấu hình này.", Toast.LENGTH_LONG).show()
     }
 
     private fun saveCurrentProfile() {
@@ -399,9 +427,14 @@ class SettingsActivity : Activity() {
         if (!SettingsValidator.isValidProfileName(name)) {
             profileName.error = "Tên profile phải có 1–40 ký tự"
             profileName.requestFocus()
+            Toast.makeText(this, "Chưa lưu profile: hãy nhập tên profile hợp lệ.", Toast.LENGTH_SHORT).show()
             return
         }
-        val pending = readValidatedSettings(requireHost = false) ?: return
+        val pending = readValidatedSettings(requireHost = false)
+        if (pending == null) {
+            Toast.makeText(this, "Chưa lưu profile: hãy sửa mục đang báo lỗi.", Toast.LENGTH_SHORT).show()
+            return
+        }
         persistCurrent(pending)
         val id = selectedProfileId ?: UUID.randomUUID().toString()
         StreamProfileStore.save(
@@ -423,7 +456,11 @@ class SettingsActivity : Activity() {
     }
 
     private fun useSelectedProfile() {
-        val profile = profiles.firstOrNull { it.id == selectedProfileId } ?: return
+        val profile = profiles.firstOrNull { it.id == selectedProfileId }
+        if (profile == null) {
+            Toast.makeText(this, "Chưa có profile để áp dụng.", Toast.LENGTH_SHORT).show()
+            return
+        }
         StreamProfileStore.setActive(this, profile.id)
         StreamConfigStore.save(this, profile.config)
         StreamConfig.installRuntimeConfig(profile.config)
@@ -449,7 +486,11 @@ class SettingsActivity : Activity() {
     }
 
     private fun deleteSelectedProfile() {
-        val profile = profiles.firstOrNull { it.id == selectedProfileId } ?: return
+        val profile = profiles.firstOrNull { it.id == selectedProfileId }
+        if (profile == null) {
+            Toast.makeText(this, "Chưa có profile để xóa.", Toast.LENGTH_SHORT).show()
+            return
+        }
         StreamProfileStore.delete(this, profile.id)
         selectedProfileId = null
         setupProfiles()
@@ -458,7 +499,11 @@ class SettingsActivity : Activity() {
 
     private fun saveSettings(connectAfterSave: Boolean) {
         clearValidationErrors()
-        val pending = readValidatedSettings(requireHost = connectAfterSave) ?: return
+        val pending = readValidatedSettings(requireHost = connectAfterSave)
+        if (pending == null) {
+            Toast.makeText(this, "Chưa lưu cấu hình: hãy sửa mục đang báo lỗi.", Toast.LENGTH_SHORT).show()
+            return
+        }
         persistCurrent(pending)
         Toast.makeText(this, "Đã lưu cấu hình", Toast.LENGTH_SHORT).show()
         restartMainActivity(connectAfterSave, pending.host, pending.port, pending.config.latencyMs)
@@ -518,6 +563,7 @@ class SettingsActivity : Activity() {
         }.getOrDefault(false)
         if (!validAtRequestedSettings) {
             inputBitrateMbps.error = "Tổ hợp ống kính/độ phân giải/FPS/bitrate/profile này không được codec phần cứng hỗ trợ"
+            inputBitrateMbps.requestFocus()
             return null
         }
 
