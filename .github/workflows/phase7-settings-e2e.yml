@@ -173,3 +173,128 @@ jobs:
           name: phase7-settings-e2e-evidence
           path: build/phase7-settings-e2e
           if-no-files-found: warn
+
+  manual-unicast-functional:
+    name: Manual SRT unicast functional path over Tailscale
+    needs: [build-android, settings-device-e2e]
+    runs-on: [self-hosted, linux, openstream-device-lab]
+    timeout-minutes: 20
+    env:
+      ADB_SERIAL_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.adb_serial || vars.OPENSTREAM_ANDROID_ADB_ENDPOINT }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download device APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: phase7-device-apks
+          path: dist
+
+      - name: Resolve Android, Tailscale receiver, and free SRT port
+        id: lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v adb
+          command -v ffmpeg
+          command -v ffprobe
+          command -v python3
+          command -v tailscale
+
+          adb_serial="$ADB_SERIAL_CONFIG"
+          if [[ -n "$adb_serial" ]]; then
+            adb connect "$adb_serial" || true
+            adb -s "$adb_serial" wait-for-device
+            [[ "$(adb -s "$adb_serial" get-state)" == "device" ]]
+          else
+            mapfile -t devices < <(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+            if [[ ${#devices[@]} -ne 1 ]]; then
+              echo "Cần đúng 1 ADB device khi không có adb_serial; hiện có ${#devices[@]}" >&2
+              exit 1
+            fi
+            adb_serial="${devices[0]}"
+          fi
+
+          receiver_host="$(tailscale ip -4 | head -n1)"
+          [[ -n "$receiver_host" ]]
+
+          receiver_port=""
+          seed=$((GITHUB_RUN_ID % 20000))
+          for offset in $(seq 0 63); do
+            candidate=$((20000 + (seed + offset) % 20000))
+            if python3 - "$candidate" <<'PY'
+          import socket
+          import sys
+
+          port = int(sys.argv[1])
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          try:
+              sock.bind(("0.0.0.0", port))
+          except OSError:
+              raise SystemExit(1)
+          finally:
+              sock.close()
+          PY
+            then
+              receiver_port="$candidate"
+              break
+            fi
+          done
+          [[ -n "$receiver_port" ]] || { echo 'Không tìm được UDP port trống cho SRT functional smoke' >&2; exit 1; }
+
+          echo "adb_serial=$adb_serial" >> "$GITHUB_OUTPUT"
+          echo "receiver_host=$receiver_host" >> "$GITHUB_OUTPUT"
+          echo "receiver_port=$receiver_port" >> "$GITHUB_OUTPUT"
+          echo "Scope: P7-TC08 manual unicast functional evidence over Tailscale; NOT LAN/performance acceptance"
+
+      - name: Validate existing functional harness
+        run: |
+          python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py
+          ffmpeg -hide_banner -protocols | grep -w srt
+
+      - name: Run manual unicast functional smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/phase6_soak_e2e.py \
+            --adb-serial '${{ steps.lab.outputs.adb_serial }}' \
+            --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
+            --app-apk dist/openstream-android.apk \
+            --test-apk dist/openstream-android-test.apk \
+            --receiver-port '${{ steps.lab.outputs.receiver_port }}' \
+            --duration-seconds 60 \
+            --stream-bitrate-mbps 8 \
+            --capability-bitrate-mbps 30 \
+            --latency-ms 120 \
+            --sample-period-seconds 15 \
+            --evidence-dir build/phase7-unicast-e2e
+
+      - name: Record P7 unicast scope
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build/phase7-unicast-e2e
+          {
+            echo "tc=P7-TC08"
+            echo "transport=tailscale-unicast"
+            echo "functional_acceptance=true"
+            echo "production_lan_acceptance=false"
+            echo "discovery_acceptance=false"
+            echo "performance_acceptance=false"
+          } > build/phase7-unicast-e2e/p7-scope.txt
+
+      - name: Stop test app
+        if: always()
+        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+
+      - name: Upload P7 manual-unicast evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase7-manual-unicast-evidence
+          path: build/phase7-unicast-e2e
+          if-no-files-found: warn

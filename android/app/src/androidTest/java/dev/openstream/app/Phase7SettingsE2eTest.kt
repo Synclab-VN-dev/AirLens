@@ -2,13 +2,15 @@ package dev.openstream.app
 
 import android.content.Context
 import android.content.Intent
+import android.widget.EditText
+import android.widget.Spinner
+import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.openstream.app.stream.ConnectionTarget
 import dev.openstream.app.stream.StreamConfig
 import dev.openstream.app.stream.StreamConfigStore
 import dev.openstream.app.stream.StreamPreset
-import dev.openstream.app.stream.StreamProfile
 import dev.openstream.app.stream.StreamProfileStore
 import dev.openstream.app.stream.StreamingCapabilityResolver
 import org.junit.Assert.assertEquals
@@ -21,12 +23,13 @@ import org.junit.runner.RunWith
 class Phase7SettingsE2eTest {
 
     @Test
-    fun profilesPresetsAndCapabilityReasonsAreUsableOnRealDevice() {
+    fun profileCrudPresetSelectionAndCapabilityReasonsWorkOnRealDevice() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val base = StreamConfig.Baseline1080p30
         StreamConfigStore.save(context, base)
         StreamConfig.installRuntimeConfig(base)
+        StreamProfileStore.clear(context)
 
         val resolver = StreamingCapabilityResolver(context)
         val baselineModes = resolver.resolve(base)
@@ -40,28 +43,6 @@ class Phase7SettingsE2eTest {
             .putInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
             .apply()
 
-        StreamProfileStore.clear(context)
-        val profileA = StreamProfile(
-            id = "phase7-a",
-            name = "Studio A",
-            config = base,
-            lens = lens,
-            obsHost = "100.64.0.10",
-            obsPort = 9000,
-            listeningPort = 9000,
-        )
-        val profileB = profileA.copy(
-            id = "phase7-b",
-            name = "Studio B",
-            config = StreamPreset.FullHd60.applyTo(base),
-            obsHost = "100.64.0.11",
-            obsPort = 9100,
-        )
-        StreamProfileStore.save(context, profileA, makeActive = false)
-        StreamProfileStore.save(context, profileB, makeActive = true)
-        assertEquals(2, StreamProfileStore.list(context).size)
-        assertEquals("phase7-b", StreamProfileStore.active(context)?.id)
-
         val activity = instrumentation.startActivitySync(
             Intent(context, SettingsActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -69,41 +50,145 @@ class Phase7SettingsE2eTest {
         ) as SettingsActivity
         instrumentation.waitForIdleSync()
 
+        val profileSpinner = activity.findViewById<Spinner>(R.id.settingsProfile)
+        val profileName = activity.findViewById<EditText>(R.id.settingsProfileName)
+        val host = activity.findViewById<EditText>(R.id.settingsObsHost)
+        val newProfile = activity.findViewById<TextView>(R.id.btnNewProfile)
+        val saveProfile = activity.findViewById<TextView>(R.id.btnSaveProfile)
+        val useProfile = activity.findViewById<TextView>(R.id.btnUseProfile)
+        val deleteProfile = activity.findViewById<TextView>(R.id.btnDeleteProfile)
+        val presetSpinner = activity.findViewById<Spinner>(R.id.settingsPreset)
+        val presetNote = activity.findViewById<TextView>(R.id.settingsPresetNote)
+        val width = activity.findViewById<EditText>(R.id.settingsWidth)
+        val height = activity.findViewById<EditText>(R.id.settingsHeight)
+        val fps = activity.findViewById<EditText>(R.id.settingsFps)
+
         instrumentation.runOnMainSync {
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsProfile))
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsPreset))
+            assertNotNull(profileSpinner)
+            assertNotNull(presetSpinner)
             assertNotNull(activity.findViewById<android.view.View>(R.id.settingsCapabilityLens))
             assertNotNull(activity.findViewById<android.view.View>(R.id.settingsCapabilityMode))
             assertNotNull(activity.findViewById<android.view.View>(R.id.settingsAudioEnabled))
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsObsHost))
-
-            val profileSpinner = activity.findViewById<android.widget.Spinner>(R.id.settingsProfile)
-            val presetSpinner = activity.findViewById<android.widget.Spinner>(R.id.settingsPreset)
-            assertEquals(2, profileSpinner.count)
+            assertNotNull(host)
             assertEquals(StreamPreset.entries.size, presetSpinner.count)
+        }
 
-            val labels = (0 until presetSpinner.count).map { index ->
-                presetSpinner.getItemAtPosition(index).toString()
+        // Create the first profile through the real Settings UI.
+        instrumentation.runOnMainSync {
+            newProfile.performClick()
+            profileName.setText("Studio A")
+            host.setText("100.64.0.10")
+            saveProfile.performClick()
+        }
+        instrumentation.waitForIdleSync()
+        var stored = StreamProfileStore.list(context)
+        assertEquals(1, stored.size)
+        assertEquals("Studio A", stored.single().name)
+        assertEquals("Studio A", StreamProfileStore.active(context)?.name)
+
+        // Update the selected profile instead of creating a duplicate.
+        instrumentation.runOnMainSync {
+            host.setText("100.64.0.20")
+            saveProfile.performClick()
+        }
+        instrumentation.waitForIdleSync()
+        stored = StreamProfileStore.list(context)
+        assertEquals(1, stored.size)
+        assertEquals("100.64.0.20", stored.single().obsHost)
+
+        // Create a second profile.
+        instrumentation.runOnMainSync {
+            newProfile.performClick()
+            profileName.setText("Studio B")
+            host.setText("100.64.0.30")
+            saveProfile.performClick()
+        }
+        instrumentation.waitForIdleSync()
+        stored = StreamProfileStore.list(context)
+        assertEquals(listOf("Studio A", "Studio B"), stored.map { it.name })
+
+        // Reuse Studio A and verify that endpoint settings are restored by the UI action.
+        instrumentation.runOnMainSync {
+            val indexA = (0 until profileSpinner.count).first { index ->
+                profileSpinner.getItemAtPosition(index).toString().contains("Studio A")
             }
-            StreamPreset.entries.forEachIndexed { index, preset ->
-                val candidate = preset.applyTo(base)
-                val supported = resolver.resolve(candidate).any { mode ->
-                    mode.lens == lens &&
-                        mode.width == preset.width &&
-                        mode.height == preset.height &&
-                        mode.fps == preset.fps
-                }
-                assertEquals(
-                    "Preset label must expose real unsupported state for ${preset.displayName}",
-                    !supported,
-                    labels[index].contains("Không hỗ trợ"),
-                )
+            profileSpinner.setSelection(indexA)
+        }
+        instrumentation.waitForIdleSync()
+        instrumentation.runOnMainSync { useProfile.performClick() }
+        instrumentation.waitForIdleSync()
+        assertEquals("Studio A", StreamProfileStore.active(context)?.name)
+        assertEquals(
+            "100.64.0.20",
+            context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(SettingsActivity.KEY_OBS_HOST, null),
+        )
+
+        // Invalid profile names are blocked before persistence.
+        instrumentation.runOnMainSync {
+            newProfile.performClick()
+            profileName.setText("   ")
+            saveProfile.performClick()
+        }
+        instrumentation.waitForIdleSync()
+        assertNotNull(profileName.error)
+        assertEquals(2, StreamProfileStore.list(context).size)
+
+        // Delete Studio B using the real UI action.
+        instrumentation.runOnMainSync {
+            val indexB = (0 until profileSpinner.count).first { index ->
+                profileSpinner.getItemAtPosition(index).toString().contains("Studio B")
             }
+            profileSpinner.setSelection(indexB)
+        }
+        instrumentation.waitForIdleSync()
+        instrumentation.runOnMainSync { deleteProfile.performClick() }
+        instrumentation.waitForIdleSync()
+        assertEquals(listOf("Studio A"), StreamProfileStore.list(context).map { it.name })
+
+        // Every preset must expose the same supported/unsupported truth as the real capability resolver.
+        val labels = (0 until presetSpinner.count).map { index ->
+            presetSpinner.getItemAtPosition(index).toString()
+        }
+        val options = StreamPreset.entries.map { preset ->
+            val candidate = preset.applyTo(base)
+            val supported = resolver.resolve(candidate).any { mode ->
+                mode.lens == lens &&
+                    mode.width == preset.width &&
+                    mode.height == preset.height &&
+                    mode.fps == preset.fps
+            }
+            preset to supported
+        }
+        options.forEachIndexed { index, (preset, supported) ->
+            assertEquals(
+                "Preset label must expose real unsupported state for ${preset.displayName}",
+                !supported,
+                labels[index].contains("Không hỗ trợ"),
+            )
+        }
+
+        val supportedIndex = options.indexOfFirst { it.second }
+        if (supportedIndex >= 0) {
+            val preset = options[supportedIndex].first
+            instrumentation.runOnMainSync { presetSpinner.setSelection(supportedIndex) }
+            instrumentation.waitForIdleSync()
+            assertEquals(preset.width.toString(), width.text.toString())
+            assertEquals(preset.height.toString(), height.text.toString())
+            assertEquals(preset.fps.toString(), fps.text.toString())
+        }
+
+        val unsupportedIndex = options.indexOfFirst { !it.second }
+        if (unsupportedIndex >= 0) {
+            instrumentation.runOnMainSync { presetSpinner.setSelection(unsupportedIndex) }
+            instrumentation.waitForIdleSync()
+            assertTrue(
+                "Unsupported preset must explain why it cannot be applied",
+                presetNote.text.toString().contains("không", ignoreCase = true),
+            )
         }
 
         instrumentation.runOnMainSync { activity.finish() }
-        StreamProfileStore.delete(context, profileA.id)
-        assertEquals(1, StreamProfileStore.list(context).size)
         StreamProfileStore.clear(context)
     }
 }
