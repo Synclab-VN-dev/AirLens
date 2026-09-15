@@ -37,7 +37,7 @@ on:
         default: "120"
         type: string
       receiver_port:
-        description: "Cổng SRT listener trên runner"
+        description: "Cổng SRT listener cho manual run; push tự chọn cổng trống riêng"
         required: true
         default: "19060"
         type: string
@@ -123,7 +123,7 @@ jobs:
       STREAM_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.stream_bitrate_mbps || '8' }}
       CAPABILITY_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.capability_bitrate_mbps || '30' }}
       LATENCY_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.latency_ms || '120' }}
-      RECEIVER_PORT: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_port || '19060' }}
+      RECEIVER_PORT_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_port || '19060' }}
       SAMPLE_PERIOD_SECONDS: ${{ github.event_name == 'workflow_dispatch' && '60' || '15' }}
 
     steps:
@@ -138,7 +138,7 @@ jobs:
           name: phase6-device-apks
           path: dist
 
-      - name: Resolve device and Tailscale receiver
+      - name: Resolve device, Tailscale receiver, and free SRT port
         id: lab
         shell: bash
         run: |
@@ -171,10 +171,39 @@ jobs:
           fi
           [[ -n "$receiver_host" ]]
 
+          receiver_port="$RECEIVER_PORT_CONFIG"
+          if [[ '${{ github.event_name }}' == 'push' ]]; then
+            receiver_port=""
+            seed=$((GITHUB_RUN_ID % 20000))
+            for offset in $(seq 0 63); do
+              candidate=$((20000 + (seed + offset) % 20000))
+              if python3 - "$candidate" <<'PY'
+          import socket
+          import sys
+
+          port = int(sys.argv[1])
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          try:
+              sock.bind(("0.0.0.0", port))
+          except OSError:
+              raise SystemExit(1)
+          finally:
+              sock.close()
+          PY
+              then
+                receiver_port="$candidate"
+                break
+              fi
+            done
+            [[ -n "$receiver_port" ]] || { echo 'Không tìm được UDP port trống cho SRT smoke' >&2; exit 1; }
+          fi
+
           echo "adb_serial=$adb_serial" >> "$GITHUB_OUTPUT"
           echo "receiver_host=$receiver_host" >> "$GITHUB_OUTPUT"
+          echo "receiver_port=$receiver_port" >> "$GITHUB_OUTPUT"
           echo "ADB target: $adb_serial"
           echo "Receiver host: $receiver_host"
+          echo "Receiver port: $receiver_port"
           echo "Mode: ${{ github.event_name == 'push' && 'Tailscale functional smoke (not performance acceptance)' || 'manual soak' }}"
 
       - name: Validate soak harness
@@ -191,7 +220,7 @@ jobs:
             --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
             --app-apk dist/openstream-android.apk \
             --test-apk dist/openstream-android-test.apk \
-            --receiver-port "$RECEIVER_PORT" \
+            --receiver-port '${{ steps.lab.outputs.receiver_port }}' \
             --duration-seconds "$DURATION_SECONDS" \
             --stream-bitrate-mbps "$STREAM_BITRATE_MBPS" \
             --capability-bitrate-mbps "$CAPABILITY_BITRATE_MBPS" \
@@ -204,12 +233,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          reconnect_port=$(( ${{ steps.lab.outputs.receiver_port }} + 1 ))
           python3 tools/phase6_reconnect_e2e.py \
             --adb-serial '${{ steps.lab.outputs.adb_serial }}' \
             --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
             --app-apk dist/openstream-android.apk \
             --test-apk dist/openstream-android-test.apk \
-            --receiver-port 19061 \
+            --receiver-port "$reconnect_port" \
             --duration-seconds 90 \
             --stream-bitrate-mbps 8 \
             --capability-bitrate-mbps 30 \
@@ -230,6 +260,7 @@ jobs:
           {
             echo "event=${{ github.event_name }}"
             echo "receiver_host_source=$([[ -n \"$RECEIVER_HOST_CONFIG\" ]] && echo override || echo tailscale)"
+            echo "receiver_port=${{ steps.lab.outputs.receiver_port }}"
             echo "performance_acceptance=false"
             echo "reconnect_diagnostic_auto_gate=false"
             echo "note=Push runs gate only Tailscale functional smoke. Reconnect fault injection and 20-40 Mbps LAN/Wi-Fi acceptance are manual/deferred and do not make push CI fail."
