@@ -79,17 +79,19 @@ jobs:
           ./gradlew --no-daemon :app:assembleRelease
 
       - name: Verify release APK signature and package metadata
+        shell: bash
         run: |
           set -euo pipefail
           apk=android/app/build/outputs/apk/release/app-release.apk
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
           test -f "$apk"
-          apksigner verify --verbose "$apk"
-          aapt dump badging "$apk" | tee release-badging.txt
+          "$build_tools/apksigner" verify --verbose "$apk"
+          "$build_tools/aapt" dump badging "$apk" | tee release-badging.txt
           grep -q "package: name='dev.openstream.app'" release-badging.txt
-          grep -q "application-debuggable" release-badging.txt && {
+          if grep -q "application-debuggable" release-badging.txt; then
             echo "::error::Release candidate must not be debuggable"
             exit 1
-          } || true
+          fi
 
       - name: Normalize release candidate artifact
         run: |
