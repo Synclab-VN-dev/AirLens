@@ -72,11 +72,11 @@ class CameraCapabilityProbe(context: Context) {
             Double.POSITIVE_INFINITY
         }
 
-        // Một số HAL báo min-frame-duration bảo thủ cho surface MediaCodec, dù
-        // public CamcorderProfile/EncoderProfiles và Camera2 TEMPLATE_RECORD thực tế
-        // vẫn chạy được mode tương ứng. Dùng profile quay public của Android như
-        // nguồn capability thứ hai, không hardcode theo model/vendor; MediaCodec
-        // capability vẫn được intersect ở StreamingCapabilityResolver.
+        // Một số HAL (đã gặp trên Galaxy S25 Edge) báo min-frame-duration bảo thủ
+        // cho surface MediaCodec, dù public CamcorderProfile/EncoderProfiles và một
+        // Camera2 TEMPLATE_RECORD session thực tế vẫn chạy 2160p60. Dùng profile
+        // quay public của Android như nguồn capability thứ hai thay vì hardcode
+        // theo model/vendor; MediaCodec capability vẫn được intersect ở resolver.
         val publicRecordingMaxFps = publicRecordingProfileMaxFps(cameraId, size)
 
         val candidates = listOf(24, 30, 60)
