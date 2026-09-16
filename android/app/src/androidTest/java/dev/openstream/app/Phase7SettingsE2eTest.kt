@@ -232,10 +232,22 @@ class Phase7SettingsE2eTest {
             )
         }
 
+        // As with profile selection above, dispatch the listener explicitly so the
+        // instrumentation assertion observes the state established by a real tap instead
+        // of racing Spinner's asynchronous selection callback.
         val supportedIndex = options.indexOfFirst { it.second }
         if (supportedIndex >= 0) {
             val preset = options[supportedIndex].first
-            instrumentation.runOnMainSync { presetSpinner.setSelection(supportedIndex) }
+            instrumentation.runOnMainSync {
+                presetSpinner.setSelection(supportedIndex, false)
+                assertEquals(supportedIndex, presetSpinner.selectedItemPosition)
+                presetSpinner.onItemSelectedListener?.onItemSelected(
+                    presetSpinner,
+                    null,
+                    supportedIndex,
+                    presetSpinner.getItemIdAtPosition(supportedIndex),
+                )
+            }
             instrumentation.waitForIdleSync()
             assertEquals(preset.width.toString(), width.text.toString())
             assertEquals(preset.height.toString(), height.text.toString())
@@ -244,7 +256,16 @@ class Phase7SettingsE2eTest {
 
         val unsupportedIndex = options.indexOfFirst { !it.second }
         if (unsupportedIndex >= 0) {
-            instrumentation.runOnMainSync { presetSpinner.setSelection(unsupportedIndex) }
+            instrumentation.runOnMainSync {
+                presetSpinner.setSelection(unsupportedIndex, false)
+                assertEquals(unsupportedIndex, presetSpinner.selectedItemPosition)
+                presetSpinner.onItemSelectedListener?.onItemSelected(
+                    presetSpinner,
+                    null,
+                    unsupportedIndex,
+                    presetSpinner.getItemIdAtPosition(unsupportedIndex),
+                )
+            }
             instrumentation.waitForIdleSync()
             assertTrue(
                 "Unsupported preset must explain why it cannot be applied",
