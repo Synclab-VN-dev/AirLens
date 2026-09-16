@@ -35,7 +35,7 @@ import dev.openstream.app.encoder.MediaCodecAudioEncoder
 import dev.openstream.app.encoder.MediaCodecVideoEncoder
 import dev.openstream.app.stream.ConnectionTarget
 import dev.openstream.app.stream.StreamConfig
-import dev.openstream.app.stream.SrtStreamClient
+import dev.openstream.app.telemetry.SendRateMeter
 import dev.openstream.app.telemetry.TelemetrySampler
 
 class MainActivity : Activity() {
@@ -65,7 +65,7 @@ class MainActivity : Activity() {
     private lateinit var camera: Camera2Controller
     private lateinit var encoder: MediaCodecVideoEncoder
     private lateinit var audioEncoder: MediaCodecAudioEncoder
-    private lateinit var streamClient: SrtStreamClient
+    private lateinit var streamClient: dev.openstream.app.stream.SrtStreamClient
     private lateinit var telemetry: TelemetrySampler
     private lateinit var phoneAdvertiser: PhoneDiscoveryAdvertiser
     private lateinit var obsDiscoveryClient: ObsDiscoveryClient
@@ -80,8 +80,8 @@ class MainActivity : Activity() {
     @Volatile private var reservedSlotLabel: String? = null
     @Volatile private var listenerThread: Thread? = null
     @Volatile private var callerConnectThread: Thread? = null
-    @Volatile private var callerModeActive = false
     @Volatile private var callerGeneration = 0L
+    @Volatile private var callerModeActive = false
     @Volatile private var pendingListenerStart = false
     @Volatile private var listenerGeneration = 0L
     @Volatile private var activityStarted = false
@@ -102,11 +102,16 @@ class MainActivity : Activity() {
     private var currentDevices: List<DiscoveredObsDevice> = emptyList()
     private var activeStreamBitrate: Int = streamConfig.bitrate
     private val callerLifecycleLock = Any()
+    private val sendRateMeter = SendRateMeter()
+    private var activeCallerTarget: ConnectionTarget? = null
+    private var callerReconnectRunnable: Runnable? = null
+    private var callerReconnectAttempt = 0
+    private var telemetryTick = 0L
 
     private val statsTicker = object : Runnable {
         override fun run() {
             renderStreamStats()
-            if (activeTargetName != null) {
+            if (activeTargetName != null || (callerModeActive && activeCallerTarget != null)) {
                 mainHandler.postDelayed(this, 1_000)
             }
         }
@@ -119,6 +124,15 @@ class MainActivity : Activity() {
         requestRuntimePermissions()
         setContentView(R.layout.activity_main)
         bindViews()
+
+        // Pin the preview buffer to the stream size (capped at 1080p) so the camera
+        // gets a deterministic, supported 16:9 size instead of rounding the
+        // full-screen portrait surface to an arbitrary size that SurfaceFlinger
+        // then stretches into the window.
+        val previewWidth = streamConfig.width.coerceAtMost(MAX_PREVIEW_WIDTH)
+        val previewHeight = previewWidth * streamConfig.height / streamConfig.width
+        cameraPreview.holder.setFixedSize(previewWidth, previewHeight)
+
         setupGestureDetector()
 
         currentPort = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
@@ -126,7 +140,7 @@ class MainActivity : Activity() {
             .takeIf { it in 1024..65535 }
             ?: ConnectionTarget.DEFAULT_PORT
 
-        streamClient = SrtStreamClient()
+        streamClient = dev.openstream.app.stream.SrtStreamClient()
         telemetry = TelemetrySampler(this)
         phoneAdvertiser = PhoneDiscoveryAdvertiser(
             context = this,
@@ -194,8 +208,8 @@ class MainActivity : Activity() {
                 startPhoneServerIfAllowed()
             }
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                // Fix stretched preview: adjust SurfaceView to maintain camera aspect ratio
-                adjustPreviewAspectRatio(width, height)
+                Log.i("OpenStream", "Preview surface buffer: ${width}x${height}")
+                adjustPreviewAspectRatio()
             }
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 // Close the camera before encoder teardown tries to rebuild a
@@ -236,6 +250,10 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         activityStarted = false
+        cancelCallerReconnect()
+        activeCallerTarget = null
+        callerModeActive = false
+        sendRateMeter.reset()
         cancelLensRestart()
         camera.stop()
         stopPhoneServer(clearReservation = false, updateStatus = false)
@@ -323,7 +341,11 @@ class MainActivity : Activity() {
             startActivityForResult(intent, SETTINGS_REQUEST_CODE)
         }
         btnStop.setOnClickListener {
-            stopPhoneServer(clearReservation = false)
+            if (callerModeActive) {
+                stopStream()
+            } else {
+                stopPhoneServer(clearReservation = false)
+            }
             startPreviewIfAllowed()
             startPhoneServerIfAllowed()
         }
@@ -366,13 +388,19 @@ class MainActivity : Activity() {
                 }
                 return@post
             }
-            if (activeTargetName == null && callerConnectThread == null) return@post
-            stopStream(updateStatus = false)
+
+            val target = activeCallerTarget
+            if (!callerModeActive || target == null) return@post
+            stopStream(
+                updateStatus = false,
+                preserveCallerMode = true,
+                preserveCallerTarget = true,
+            )
             startPreviewIfAllowed()
-            startPhoneServerIfAllowed()
-            statusText.text = "Connection lost"
+            statusText.text = "Reconnecting…"
             statusText.setTextColor(getColor(R.color.os_warning))
-            statusDetail.text = getString(R.string.status_waiting)
+            statusDetail.text = "Transport lost → ${target.name}"
+            scheduleCallerReconnect(target, "media/transport failure")
         }
     }
 
@@ -647,14 +675,25 @@ class MainActivity : Activity() {
         startStream(target)
     }
 
-    private fun startStream(target: ConnectionTarget) {
-        stopStream(updateStatus = false)
+    private fun startStream(target: ConnectionTarget, reconnecting: Boolean = false) {
+        if (!reconnecting) {
+            cancelCallerReconnect()
+            activeCallerTarget = target
+            callerReconnectAttempt = 0
+        } else if (activeCallerTarget != target) {
+            return
+        }
+        callerModeActive = true
+        stopStream(
+            updateStatus = false,
+            preserveCallerMode = true,
+            preserveCallerTarget = true,
+        )
         // Caller mode and listener mode share one native SRT transport. Fully
         // stop the listener before opening a manual caller connection.
         stopPhoneServer(clearReservation = true, updateStatus = false)
-        callerModeActive = true
         useStreamBitrate(target.bitrateMbps)
-        statusText.text = "Connecting…"
+        statusText.text = if (reconnecting) "Reconnecting…" else "Connecting…"
         statusDetail.text = "${currentLens.displayName} → ${target.name}"
         val generation = callerGeneration + 1
         callerGeneration = generation
@@ -674,7 +713,9 @@ class MainActivity : Activity() {
                     camera.startStreaming(encoder.inputSurface())
                 }
                 mainHandler.post {
-                    if (callerGeneration != generation) return@post
+                    if (callerGeneration != generation || activeCallerTarget != target) return@post
+                    callerReconnectAttempt = 0
+                    sendRateMeter.reset()
                     activeTargetName = target.name
                     mainHandler.removeCallbacks(statsTicker)
                     mainHandler.post(statsTicker)
@@ -685,15 +726,14 @@ class MainActivity : Activity() {
                     if (callerGeneration == generation) {
                         streamClient.disconnect()
                         stopActiveEncoding(updateStatus = false)
-                        callerModeActive = false
                     }
                 }
                 mainHandler.post {
-                    if (callerGeneration != generation) return@post
-                    startPreviewIfAllowed()
-                    startPhoneServerIfAllowed()
-                    statusText.text = "Connection failed"
-                    statusDetail.text = error.message ?: "Unknown error"
+                    if (callerGeneration != generation || activeCallerTarget != target) return@post
+                    if (callerModeActive && activityStarted) {
+                        hideLiveState()
+                        scheduleCallerReconnect(target, error.message ?: "connect failed")
+                    }
                 }
             } finally {
                 if (callerConnectThread === Thread.currentThread()) {
@@ -705,6 +745,38 @@ class MainActivity : Activity() {
         }
         callerConnectThread = thread
         thread.start()
+    }
+
+    private fun scheduleCallerReconnect(target: ConnectionTarget, reason: String) {
+        if (!activityStarted || !callerModeActive || activeCallerTarget != target) return
+        if (callerReconnectRunnable != null) return
+
+        callerReconnectAttempt += 1
+        val exponent = (callerReconnectAttempt - 1).coerceIn(0, 3)
+        val delayMs = minOf(
+            CALLER_RECONNECT_MAX_DELAY_MS,
+            CALLER_RECONNECT_BASE_DELAY_MS * (1L shl exponent),
+        )
+        statusText.text = "Reconnecting…"
+        statusText.setTextColor(getColor(R.color.os_warning))
+        statusDetail.text = "${target.name} · retry $callerReconnectAttempt in ${delayMs}ms"
+        Log.w(
+            "OpenStream",
+            "Caller reconnect scheduled attempt=$callerReconnectAttempt delayMs=$delayMs reason=$reason",
+        )
+
+        val retry = Runnable {
+            callerReconnectRunnable = null
+            if (!activityStarted || !callerModeActive || activeCallerTarget != target) return@Runnable
+            startStream(target, reconnecting = true)
+        }
+        callerReconnectRunnable = retry
+        mainHandler.postDelayed(retry, delayMs)
+    }
+
+    private fun cancelCallerReconnect() {
+        callerReconnectRunnable?.let(mainHandler::removeCallbacks)
+        callerReconnectRunnable = null
     }
 
     private fun startAudioIfAllowed() {
@@ -761,6 +833,7 @@ class MainActivity : Activity() {
                         activeTargetName = liveTargetName
                         runOnUiThread {
                             if (!isListenerActive(generation)) return@runOnUiThread
+                            sendRateMeter.reset()
                             showLiveState(liveTargetName)
                             mainHandler.removeCallbacks(statsTicker)
                             mainHandler.post(statsTicker)
@@ -827,7 +900,6 @@ class MainActivity : Activity() {
         clearReservation: Boolean = true,
         updateStatus: Boolean = true,
     ) {
-        callerModeActive = false
         callerGeneration += 1
         callerConnectThread?.interrupt()
         pendingListenerStart = false
@@ -838,6 +910,7 @@ class MainActivity : Activity() {
         activeTargetName = null
         mainHandler.removeCallbacks(statsTicker)
         streamClient.disconnect()
+        sendRateMeter.reset()
         val thread = listenerThread
         thread?.interrupt()
         if (thread != null && thread !== Thread.currentThread()) {
@@ -856,14 +929,24 @@ class MainActivity : Activity() {
         btnStop.visibility = View.GONE
     }
 
-    private fun stopStream(updateStatus: Boolean = true) {
-        callerModeActive = false
+    private fun stopStream(
+        updateStatus: Boolean = true,
+        preserveCallerMode: Boolean = false,
+        preserveCallerTarget: Boolean = false,
+    ) {
         callerGeneration += 1
         callerConnectThread?.interrupt()
+        if (!preserveCallerMode) callerModeActive = false
+        if (!preserveCallerTarget) {
+            activeCallerTarget = null
+            callerReconnectAttempt = 0
+            cancelCallerReconnect()
+        }
         activeTargetName = null
         mainHandler.removeCallbacks(statsTicker)
         phoneConnected = false
         streamClient.disconnect()
+        sendRateMeter.reset()
         synchronized(callerLifecycleLock) {
             stopActiveEncoding(updateStatus)
         }
@@ -988,6 +1071,7 @@ class MainActivity : Activity() {
         val targetName = activeTargetName ?: return
         val stats = streamClient.stats
         val megabits = stats.bytesSent * 8.0 / 1_000_000.0
+        val actualBitrateMbps = sendRateMeter.sample(stats.lifetimeBytesSent)?.div(1_000_000.0)
 
         if (forceFailure || stats.sendFailures > 0) {
             statusText.text = "Send issue"
@@ -1000,6 +1084,8 @@ class MainActivity : Activity() {
             statusText.setTextColor(getColor(R.color.os_text_primary))
         }
 
+        // Keep this exact three-field chip stable: Phase 3 instrumentation uses it
+        // as the durable UI counter contract after statusDetail becomes telemetry-rich.
         streamInfoChip.visibility = View.VISIBLE
         streamInfoChip.text = String.format(
             "%d f · %d kf · %.1f Mb",
@@ -1007,12 +1093,43 @@ class MainActivity : Activity() {
             stats.keyframesSent,
             megabits,
         )
+        val actualRateText = actualBitrateMbps?.let { String.format("%.1f", it) } ?: "—"
+        val actualProfile = encoder.actualOutputProfile?.toString() ?: "?"
         statusDetail.text = String.format(
-            "%.1fs · %d errors · %s",
+            "%.1fs · tx %s/%d Mbps · a:%d · r:%d l:%d · p:%s",
             stats.secondsSent,
-            stats.sendFailures,
-            currentLens.displayName,
+            actualRateText,
+            activeStreamBitrate / 1_000_000,
+            stats.audioAccessUnitsSent,
+            stats.reconnects,
+            stats.connectionLosses,
+            actualProfile,
         )
+
+        telemetryTick += 1
+        if (telemetryTick % TELEMETRY_LOG_INTERVAL_TICKS == 0L) {
+            val device = telemetry.sample(
+                streamUrl = activeCallerTarget?.toSrtCallerUrl()
+                    ?: "srt://0.0.0.0:$currentPort?mode=listener",
+                codec = encoder.actualHardwareCodecName ?: encoder.codecName,
+                width = streamConfig.width,
+                height = streamConfig.height,
+                fps = streamConfig.fps,
+                bitrate = activeStreamBitrate,
+                encoderState = if (stats.connected) "streaming" else "disconnected",
+            )
+            Log.i(
+                "OpenStreamTelemetry",
+                "targetMbps=${activeStreamBitrate / 1_000_000} " +
+                    "actualMbps=${actualBitrateMbps ?: -1.0} " +
+                    "videoAu=${stats.accessUnitsSent} keyframes=${stats.keyframesSent} " +
+                    "audioAu=${stats.audioAccessUnitsSent} bytes=${stats.totalSessionBytesSent} " +
+                    "losses=${stats.connectionLosses} reconnects=${stats.reconnects} " +
+                    "codec=${device.codec} profile=$actualProfile " +
+                    "rssi=${device.wifiRssi} battery=${device.batteryPercent} " +
+                    "temperatureC=${device.temperatureCelsius} thermal=${device.thermalStatus}",
+            )
+        }
     }
 
     // ─────────────────────────── Utilities ───────────────────────────
@@ -1104,32 +1221,47 @@ class MainActivity : Activity() {
 
     // ─────────────────────────── Preview aspect ratio fix ───────────────────────────
 
-    private fun adjustPreviewAspectRatio(surfaceWidth: Int, surfaceHeight: Int) {
-        // Camera outputs in landscape (e.g. 1920x1080) but phone is portrait
-        // The preview surface should match the camera aspect ratio to avoid stretching
-        val cameraAspect = streamConfig.width.toFloat() / streamConfig.height.toFloat()
-        // In portrait, the preview aspect should be height/width = 16/9
-        val targetAspect = cameraAspect // = 16:9
-
+    private fun adjustPreviewAspectRatio() {
+        val bufferAspect = streamConfig.width.toFloat() / streamConfig.height.toFloat()
         val containerWidth = previewContainer.width
         val containerHeight = previewContainer.height
-        if (containerWidth == 0 || containerHeight == 0) return
+        if (containerWidth == 0 || containerHeight == 0) {
+            previewContainer.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
+                override fun onLayoutChange(
+                    v: View,
+                    left: Int,
+                    top: Int,
+                    right: Int,
+                    bottom: Int,
+                    oldLeft: Int,
+                    oldTop: Int,
+                    oldRight: Int,
+                    oldBottom: Int,
+                ) {
+                    if (right - left > 0 && bottom - top > 0) {
+                        v.removeOnLayoutChangeListener(this)
+                        adjustPreviewAspectRatio()
+                    }
+                }
+            })
+            return
+        }
 
-        val containerAspect = containerWidth.toFloat() / containerHeight.toFloat()
-        // In portrait, we want the preview to fill width and adjust height
+        // Buffer hiển thị xoay 90° trên màn hình dọc nên khung view mục tiêu là 9:16.
         val targetWidth: Int
         val targetHeight: Int
-        if (containerAspect > (1f / targetAspect)) {
-            // Container is wider than needed — match height, crop width
+        if (containerWidth.toFloat() / containerHeight > 1f / bufferAspect) {
+            // Container rộng hơn 9:16: fit theo chiều cao, pillarbox hai bên.
             targetHeight = containerHeight
-            targetWidth = (containerHeight / targetAspect).toInt()
+            targetWidth = (containerHeight / bufferAspect).toInt()
         } else {
-            // Container is taller than needed — match width, crop height
+            // Container cao hơn 9:16: fit theo chiều rộng, letterbox trên/dưới.
             targetWidth = containerWidth
-            targetHeight = (containerWidth * targetAspect).toInt()
+            targetHeight = (containerWidth * bufferAspect).toInt()
         }
 
         val lp = cameraPreview.layoutParams as FrameLayout.LayoutParams
+        if (lp.width == targetWidth && lp.height == targetHeight && lp.gravity == Gravity.CENTER) return
         lp.width = targetWidth
         lp.height = targetHeight
         lp.gravity = Gravity.CENTER
@@ -1165,6 +1297,10 @@ class MainActivity : Activity() {
         private const val LISTENER_POLL_MS = 250L
         private const val LISTENER_RETRY_MS = 750L
         private const val LISTENER_STOP_TIMEOUT_MS = 2_000L
+        private const val CALLER_RECONNECT_BASE_DELAY_MS = 750L
+        private const val CALLER_RECONNECT_MAX_DELAY_MS = 5_000L
+        private const val TELEMETRY_LOG_INTERVAL_TICKS = 10L
+        private const val MAX_PREVIEW_WIDTH = 1920
         private const val SETTINGS_REQUEST_CODE = 200
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CAMERA,
