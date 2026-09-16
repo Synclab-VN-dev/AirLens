@@ -1,0 +1,284 @@
+name: Phase 6 Soak E2E
+
+on:
+  push:
+    branches:
+      - phase-6-stability-telemetry
+  workflow_dispatch:
+    inputs:
+      adb_serial:
+        description: "ADB serial override; để trống để dùng OPENSTREAM_ANDROID_ADB_ENDPOINT hoặc đúng 1 device đã kết nối"
+        required: false
+        default: ""
+        type: string
+      receiver_host:
+        description: "IP receiver override; để trống để lấy tailscale ip -4 trên runner"
+        required: false
+        default: ""
+        type: string
+      duration_seconds:
+        description: "Thời lượng soak thủ công, 60-3600 giây"
+        required: true
+        default: "1800"
+        type: string
+      stream_bitrate_mbps:
+        description: "Bitrate; 20-40 Mbps chỉ được tính performance gate khi chạy trên LAN/Wi-Fi phù hợp"
+        required: true
+        default: "30"
+        type: string
+      capability_bitrate_mbps:
+        description: "Bitrate gate capability 4K30"
+        required: true
+        default: "30"
+        type: string
+      latency_ms:
+        description: "SRT latency"
+        required: true
+        default: "120"
+        type: string
+      receiver_port:
+        description: "Cổng SRT listener cho manual run; push tự chọn cổng trống riêng"
+        required: true
+        default: "19060"
+        type: string
+      run_reconnect_diagnostic:
+        description: "Chạy fault-injection reconnect thủ công; không phải push gate và không thay thế nghiệm thu LAN/Wi-Fi production"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Push liên tiếp trong lúc debug chỉ cần giữ run mới nhất. Tách group theo
+# event để một workflow_dispatch soak thủ công về sau không bị push mới hủy.
+concurrency:
+  group: phase6-soak-e2e-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    name: Build app + instrumentation APKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Package `tools` is no longer published by current sdkmanager.
+          # We install only the exact build packages needed in the next step.
+          packages: ""
+
+      - name: Install Android build packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+
+      - name: Compute Android version metadata
+        id: version
+        run: echo "code=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
+      - name: Run repository tests and build device APKs
+        env:
+          OPENSTREAM_VERSION_NAME: 1.0.1
+          OPENSTREAM_VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q
+          cd android
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+
+      - name: Normalize APK names
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/openstream-android.apk
+          cp android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk dist/openstream-android-test.apk
+
+      - name: Upload device APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase6-device-apks
+          path: dist/*.apk
+          if-no-files-found: error
+
+  device-soak:
+    name: 4K30 + mic functional smoke / manual soak
+    needs: build-android
+    runs-on: [self-hosted, linux, openstream-device-lab]
+    timeout-minutes: 75
+    env:
+      ADB_SERIAL_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.adb_serial || vars.OPENSTREAM_ANDROID_ADB_ENDPOINT }}
+      RECEIVER_HOST_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_host || '' }}
+      DURATION_SECONDS: ${{ github.event_name == 'workflow_dispatch' && inputs.duration_seconds || '60' }}
+      STREAM_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.stream_bitrate_mbps || '8' }}
+      CAPABILITY_BITRATE_MBPS: ${{ github.event_name == 'workflow_dispatch' && inputs.capability_bitrate_mbps || '30' }}
+      LATENCY_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.latency_ms || '120' }}
+      RECEIVER_PORT_CONFIG: ${{ github.event_name == 'workflow_dispatch' && inputs.receiver_port || '19060' }}
+      SAMPLE_PERIOD_SECONDS: ${{ github.event_name == 'workflow_dispatch' && '60' || '15' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download app + instrumentation APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: phase6-device-apks
+          path: dist
+
+      - name: Resolve device, Tailscale receiver, and free SRT port
+        id: lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v adb
+          command -v ffmpeg
+          command -v ffprobe
+          command -v python3
+          command -v tailscale
+
+          adb_serial="$ADB_SERIAL_CONFIG"
+          if [[ -n "$adb_serial" ]]; then
+            adb connect "$adb_serial" || true
+            adb -s "$adb_serial" wait-for-device
+            state="$(adb -s "$adb_serial" get-state)"
+            [[ "$state" == "device" ]]
+          else
+            mapfile -t devices < <(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+            if [[ ${#devices[@]} -ne 1 ]]; then
+              echo "Cần đúng 1 ADB device khi không có adb_serial; hiện có ${#devices[@]}" >&2
+              printf '%s\n' "${devices[@]}" >&2
+              exit 1
+            fi
+            adb_serial="${devices[0]}"
+          fi
+
+          receiver_host="$RECEIVER_HOST_CONFIG"
+          if [[ -z "$receiver_host" ]]; then
+            receiver_host="$(tailscale ip -4 | head -n1)"
+          fi
+          [[ -n "$receiver_host" ]]
+
+          receiver_port="$RECEIVER_PORT_CONFIG"
+          if [[ '${{ github.event_name }}' == 'push' ]]; then
+            receiver_port=""
+            seed=$((GITHUB_RUN_ID % 20000))
+            for offset in $(seq 0 63); do
+              candidate=$((20000 + (seed + offset) % 20000))
+              if python3 - "$candidate" <<'PY'
+          import socket
+          import sys
+
+          port = int(sys.argv[1])
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          try:
+              sock.bind(("0.0.0.0", port))
+          except OSError:
+              raise SystemExit(1)
+          finally:
+              sock.close()
+          PY
+              then
+                receiver_port="$candidate"
+                break
+              fi
+            done
+            [[ -n "$receiver_port" ]] || { echo 'Không tìm được UDP port trống cho SRT smoke' >&2; exit 1; }
+          fi
+
+          echo "adb_serial=$adb_serial" >> "$GITHUB_OUTPUT"
+          echo "receiver_host=$receiver_host" >> "$GITHUB_OUTPUT"
+          echo "receiver_port=$receiver_port" >> "$GITHUB_OUTPUT"
+          echo "ADB target: $adb_serial"
+          echo "Receiver host: $receiver_host"
+          echo "Receiver port: $receiver_port"
+          echo "Mode: ${{ github.event_name == 'push' && 'Tailscale functional smoke (not performance acceptance)' || 'manual soak' }}"
+
+      - name: Reset OpenStream test packages
+        shell: bash
+        run: |
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app.test || true
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app || true
+
+      - name: Validate soak harness
+        run: |
+          python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py tools/phase6_reconnect_e2e.py
+          ffmpeg -hide_banner -protocols | grep -w srt
+
+      - name: Run Phase 6 functional smoke / soak
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/phase6_soak_e2e.py \
+            --adb-serial '${{ steps.lab.outputs.adb_serial }}' \
+            --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
+            --app-apk dist/openstream-android.apk \
+            --test-apk dist/openstream-android-test.apk \
+            --receiver-port '${{ steps.lab.outputs.receiver_port }}' \
+            --duration-seconds "$DURATION_SECONDS" \
+            --stream-bitrate-mbps "$STREAM_BITRATE_MBPS" \
+            --capability-bitrate-mbps "$CAPABILITY_BITRATE_MBPS" \
+            --latency-ms "$LATENCY_MS" \
+            --sample-period-seconds "$SAMPLE_PERIOD_SECONDS" \
+            --evidence-dir build/phase6-soak-e2e
+
+      - name: Run Phase 6 reconnect diagnostic (manual only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_reconnect_diagnostic }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          reconnect_port=$(( ${{ steps.lab.outputs.receiver_port }} + 1 ))
+          python3 tools/phase6_reconnect_e2e.py \
+            --adb-serial '${{ steps.lab.outputs.adb_serial }}' \
+            --receiver-host '${{ steps.lab.outputs.receiver_host }}' \
+            --app-apk dist/openstream-android.apk \
+            --test-apk dist/openstream-android-test.apk \
+            --receiver-port "$reconnect_port" \
+            --duration-seconds 90 \
+            --stream-bitrate-mbps 8 \
+            --capability-bitrate-mbps 30 \
+            --latency-ms "$LATENCY_MS" \
+            --outage-seconds 10 \
+            --fault-after-bytes 4000000 \
+            --evidence-dir build/phase6-reconnect-e2e
+
+      - name: Stop test app
+        if: always()
+        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+
+      - name: Record transport context
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build/phase6-soak-e2e
+          {
+            echo "event=${{ github.event_name }}"
+            echo "receiver_host_source=$([[ -n \"$RECEIVER_HOST_CONFIG\" ]] && echo override || echo tailscale)"
+            echo "receiver_port=${{ steps.lab.outputs.receiver_port }}"
+            echo "performance_acceptance=false"
+            echo "reconnect_diagnostic_auto_gate=false"
+            echo "note=Push runs gate only Tailscale functional smoke. Reconnect fault injection and 20-40 Mbps LAN/Wi-Fi acceptance are manual/deferred and do not make push CI fail."
+          } > build/phase6-soak-e2e/transport-context.txt
+          tailscale status > build/phase6-soak-e2e/tailscale-status.txt 2>&1 || true
+
+      - name: Upload Phase 6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase6-soak-e2e-evidence
+          path: |
+            build/phase6-soak-e2e
+            build/phase6-reconnect-e2e
+          if-no-files-found: warn
