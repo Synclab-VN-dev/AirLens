@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
+import dev.openstream.app.stream.StreamConfig
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
@@ -33,6 +34,7 @@ data class EncodedAccessUnit(
 private data class EncoderSelection(
     val mimeType: String,
     val codecName: String,
+    val supportedAvcProfiles: Set<Int>,
 )
 
 class MediaCodecVideoEncoder(
@@ -42,9 +44,11 @@ class MediaCodecVideoEncoder(
     private val fps: Int,
     private val bitrate: Int,
     private val keyframeIntervalSeconds: Int,
+    private val bitrateMode: VideoBitrateMode = StreamConfig.Default1080p30.videoBitrateMode,
+    private val avcProfilePreference: AvcProfilePreference = StreamConfig.Default1080p30.avcProfilePreference,
+    private val bFramesEnabled: Boolean = StreamConfig.Default1080p30.bFramesEnabled,
     private val onEncodedAccessUnit: (EncodedAccessUnit) -> Unit,
 ) {
-    private var selection: EncoderSelection? = null
     private var mimeType = preference.advertisedMimeType()
     private var codec: MediaCodec? = null
     private var callbackThread: HandlerThread? = null
@@ -54,24 +58,44 @@ class MediaCodecVideoEncoder(
     private val deliveryLock = Any()
     private val callbackLock = Any()
 
+    @Volatile
+    var actualOutputProfile: Int? = null
+        private set
+
+    @Volatile
+    var actualHardwareCodecName: String? = null
+        private set
+
+    @Volatile
+    var actualBitrateMode: VideoBitrateMode? = null
+        private set
+
     val codecName: String
         get() = mimeType
 
     fun inputSurface(): Surface = checkNotNull(surface) { "Encoder input surface is not ready" }
 
     fun start() = synchronized(lifecycleLock) {
-        // Re-evaluate the codec at every start because bitrate can change per OBS reservation
-        // and vendor codec availability may change after a codec failure/restart.
-        if (codec != null || callbackThread != null) {
-            stop()
-        }
-        val resolvedSelection = chooseEncoder(preference, width, height, fps, bitrate)
-        selection = resolvedSelection
+        if (codec != null || callbackThread != null) stop()
+
+        val resolvedSelection = chooseEncoder(
+            preference = preference,
+            width = width,
+            height = height,
+            fps = fps,
+            bitrate = bitrate,
+            bitrateMode = bitrateMode,
+            profilePreference = avcProfilePreference,
+        )
         mimeType = resolvedSelection.mimeType
+        actualOutputProfile = null
+        actualHardwareCodecName = resolvedSelection.codecName
+        actualBitrateMode = bitrateMode
         Log.i(
-            "OpenStreamEncoder",
+            TAG,
             "Using hardware encoder ${resolvedSelection.codecName} for $mimeType " +
-                "${width}x${height}@${fps} (${bitrate / 1_000_000} Mbps)",
+                "${width}x${height}@${fps} (${bitrate / 1_000_000} Mbps), " +
+                "bitrateMode=$bitrateMode profile=$avcProfilePreference bFrames=$bFramesEnabled",
         )
         val encoder = createConfiguredEncoder(resolvedSelection)
         codec = encoder
@@ -118,10 +142,7 @@ class MediaCodecVideoEncoder(
 
                 override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) {
                     if (streamGeneration != generation) return
-                    Log.e("OpenStreamEncoder", "MediaCodec encoder error", e)
-                    // Route a fatal asynchronous codec failure through the same generation-bound
-                    // delivery path as media. SrtStreamClient recognizes this sentinel and marks
-                    // the active session failed without attempting to mux an invalid access unit.
+                    Log.e(TAG, "MediaCodec encoder error", e)
                     deliverIfCurrent(
                         generation,
                         EncodedAccessUnit(
@@ -135,13 +156,21 @@ class MediaCodecVideoEncoder(
 
                 override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
                     if (streamGeneration != generation) return
+                    if (format.containsKey(MediaFormat.KEY_PROFILE)) {
+                        actualOutputProfile = runCatching { format.getInteger(MediaFormat.KEY_PROFILE) }.getOrNull()
+                    }
+                    if (mimeType == MediaFormat.MIMETYPE_VIDEO_AVC) {
+                        Log.i(
+                            TAG,
+                            "AVC output profile=" +
+                                (actualOutputProfile?.let(::avcProfileName) ?: "không được codec công bố"),
+                        )
+                        verifyExplicitProfile(actualOutputProfile)
+                    }
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
                         format.containsKey(MediaFormat.KEY_LATENCY)
                     ) {
-                        Log.i(
-                            "OpenStreamEncoder",
-                            "Encoder accepted latency=${format.getInteger(MediaFormat.KEY_LATENCY)} frame(s)",
-                        )
+                        Log.i(TAG, "Encoder accepted latency=${format.getInteger(MediaFormat.KEY_LATENCY)} frame(s)")
                     }
                     codecConfigFrom(format)?.let { config ->
                         deliverIfCurrent(
@@ -158,9 +187,7 @@ class MediaCodecVideoEncoder(
             encoder.start()
         } catch (error: Throwable) {
             synchronized(deliveryLock) {
-                if (streamGeneration == generation) {
-                    streamGeneration += 1
-                }
+                if (streamGeneration == generation) streamGeneration += 1
             }
             codec = null
             surface = null
@@ -174,9 +201,7 @@ class MediaCodecVideoEncoder(
     }
 
     fun stop() = synchronized(lifecycleLock) {
-        synchronized(deliveryLock) {
-            streamGeneration += 1
-        }
+        synchronized(deliveryLock) { streamGeneration += 1 }
         val encoder = codec
         codec = null
         surface = null
@@ -189,24 +214,20 @@ class MediaCodecVideoEncoder(
         stopCallbackThread()
     }
 
-    private fun createConfiguredEncoder(resolvedSelection: EncoderSelection): MediaCodec {
+    private fun createConfiguredEncoder(selection: EncoderSelection): MediaCodec {
         var firstError: Throwable? = null
         for (applyOptionalTuning in listOf(true, false)) {
-            val encoder = MediaCodec.createByCodecName(resolvedSelection.codecName)
+            val encoder = MediaCodec.createByCodecName(selection.codecName)
             try {
                 encoder.configure(
-                    createVideoFormat(applyOptionalTuning),
+                    createVideoFormat(selection, applyOptionalTuning),
                     null,
                     null,
                     MediaCodec.CONFIGURE_FLAG_ENCODE,
                 )
                 surface = encoder.createInputSurface()
                 if (!applyOptionalTuning && firstError != null) {
-                    Log.w(
-                        "OpenStreamEncoder",
-                        "Encoder rejected optional low-latency hints; using core profile",
-                        firstError,
-                    )
+                    Log.w(TAG, "Encoder rejected optional low-latency hints; using core profile", firstError)
                 }
                 return encoder
             } catch (error: Throwable) {
@@ -222,13 +243,24 @@ class MediaCodecVideoEncoder(
         error("Encoder configuration retry exhausted")
     }
 
-    private fun createVideoFormat(applyOptionalTuning: Boolean): MediaFormat {
+    private fun createVideoFormat(
+        selection: EncoderSelection,
+        applyOptionalTuning: Boolean,
+    ): MediaFormat {
         return MediaFormat.createVideoFormat(mimeType, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
             setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, keyframeIntervalSeconds)
-            setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
+            bitrateMode.mediaCodecModeOrNull()?.let { setInteger(MediaFormat.KEY_BITRATE_MODE, it) }
+
+            if (mimeType == MediaFormat.MIMETYPE_VIDEO_AVC) {
+                requestedAvcProfile(selection)?.let { profile ->
+                    setInteger(MediaFormat.KEY_PROFILE, profile)
+                    Log.i(TAG, "Requesting AVC profile ${avcProfileName(profile)}")
+                }
+            }
+
             if (applyOptionalTuning && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 setInteger(MediaFormat.KEY_PRIORITY, 0)
                 setFloat(MediaFormat.KEY_OPERATING_RATE, fps.toFloat())
@@ -237,10 +269,34 @@ class MediaCodecVideoEncoder(
                 setInteger(MediaFormat.KEY_LATENCY, 0)
             }
             if (applyOptionalTuning && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0)
+                setInteger(MediaFormat.KEY_MAX_B_FRAMES, if (bFramesEnabled) 1 else 0)
             }
         }
     }
+
+    private fun requestedAvcProfile(selection: EncoderSelection): Int? {
+        val explicit = avcProfilePreference.toCodecProfileOrNull()
+        if (explicit != null) return explicit
+        return if (is4kTarget() &&
+            MediaCodecInfo.CodecProfileLevel.AVCProfileHigh in selection.supportedAvcProfiles
+        ) {
+            MediaCodecInfo.CodecProfileLevel.AVCProfileHigh
+        } else {
+            null
+        }
+    }
+
+    private fun verifyExplicitProfile(actualProfile: Int?) {
+        val requested = avcProfilePreference.toCodecProfileOrNull()
+        if (requested != null && actualProfile != null && actualProfile != requested) {
+            Log.e(
+                TAG,
+                "Codec reported ${avcProfileName(actualProfile)} although ${avcProfileName(requested)} was requested",
+            )
+        }
+    }
+
+    private fun is4kTarget(): Boolean = width >= 3840 && height >= 2160
 
     private fun stopCallbackThread() {
         val thread = callbackThread ?: return
@@ -249,7 +305,7 @@ class MediaCodecVideoEncoder(
         if (Thread.currentThread() != thread) {
             runCatching { thread.join(CALLBACK_THREAD_JOIN_TIMEOUT_MS) }
             if (thread.isAlive) {
-                Log.w("OpenStreamEncoder", "Encoder callback thread did not exit within timeout")
+                Log.w(TAG, "Encoder callback thread did not exit within timeout")
                 thread.quit()
             }
         }
@@ -269,39 +325,27 @@ class MediaCodecVideoEncoder(
         height: Int,
         fps: Int,
         bitrate: Int,
+        bitrateMode: VideoBitrateMode,
+        profilePreference: AvcProfilePreference,
     ): EncoderSelection {
         val mimeTypes = when (preference) {
             CodecPreference.ForceAvc -> listOf(MediaFormat.MIMETYPE_VIDEO_AVC)
-            CodecPreference.PreferHevc -> listOf(
-                MediaFormat.MIMETYPE_VIDEO_HEVC,
-                MediaFormat.MIMETYPE_VIDEO_AVC,
-            )
+            CodecPreference.PreferHevc -> listOf(MediaFormat.MIMETYPE_VIDEO_HEVC, MediaFormat.MIMETYPE_VIDEO_AVC)
         }
         val infos = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
         for (mime in mimeTypes) {
             val candidates = infos.mapNotNull { candidate ->
-                if (!candidate.isEncoder ||
-                    !candidate.isHardwareAccelerated ||
-                    candidate.isSoftwareOnly ||
+                if (!candidate.isEncoder || !candidate.isHardwareAccelerated || candidate.isSoftwareOnly ||
                     candidate.supportedTypes.none { it.equals(mime, true) }
-                ) {
-                    return@mapNotNull null
-                }
+                ) return@mapNotNull null
 
-                val capabilities = runCatching {
-                    candidate.getCapabilitiesForType(mime)
-                }.getOrNull() ?: return@mapNotNull null
-                if (!capabilities.colorFormats.contains(
-                        MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface,
-                    )
-                ) {
+                val capabilities = runCatching { candidate.getCapabilitiesForType(mime) }.getOrNull()
+                    ?: return@mapNotNull null
+                if (!capabilities.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)) {
                     return@mapNotNull null
                 }
-                if (!capabilities.encoderCapabilities.isBitrateModeSupported(
-                        MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR,
-                    )
-                ) {
-                    Log.d("OpenStreamEncoder", "Skipping ${candidate.name}: CBR is unsupported")
+                if (!bitrateModeSupported(capabilities.encoderCapabilities, bitrateMode)) {
+                    Log.d(TAG, "Skipping ${candidate.name}: bitrate mode $bitrateMode is unsupported")
                     return@mapNotNull null
                 }
 
@@ -310,40 +354,69 @@ class MediaCodecVideoEncoder(
                     videoCapabilities.areSizeAndRateSupported(width, height, fps.toDouble()) &&
                         videoCapabilities.bitrateRange.contains(bitrate)
                 }.getOrDefault(false)
-                if (!supportsTarget) {
-                    Log.d(
-                        "OpenStreamEncoder",
-                        "Skipping ${candidate.name}: cannot sustain ${width}x${height}@${fps} " +
-                            "at ${bitrate / 1_000_000} Mbps",
-                    )
+                if (!supportsTarget) return@mapNotNull null
+
+                val profiles = if (mime == MediaFormat.MIMETYPE_VIDEO_AVC) {
+                    capabilities.profileLevels.map { it.profile }.toSet()
+                } else emptySet()
+                val explicitProfile = profilePreference.toCodecProfileOrNull()
+                if (mime == MediaFormat.MIMETYPE_VIDEO_AVC && explicitProfile != null && explicitProfile !in profiles) {
                     return@mapNotNull null
                 }
-
-                EncoderSelection(mime, candidate.name)
+                EncoderSelection(mime, candidate.name, profiles)
             }
 
-            val selected = candidates.firstOrNull() ?: continue
-            if (preference == CodecPreference.PreferHevc &&
-                mime == MediaFormat.MIMETYPE_VIDEO_AVC
+            val selected = if (mime == MediaFormat.MIMETYPE_VIDEO_AVC && is4k(width, height) &&
+                profilePreference == AvcProfilePreference.Auto
             ) {
-                Log.w(
-                    "OpenStreamEncoder",
-                    "Hardware HEVC cannot satisfy the requested stream profile; " +
-                        "explicitly falling back to hardware AVC",
-                )
+                candidates.firstOrNull {
+                    MediaCodecInfo.CodecProfileLevel.AVCProfileHigh in it.supportedAvcProfiles
+                } ?: candidates.firstOrNull()
+            } else {
+                candidates.firstOrNull()
+            } ?: continue
+
+            if (preference == CodecPreference.PreferHevc && mime == MediaFormat.MIMETYPE_VIDEO_AVC) {
+                Log.w(TAG, "Hardware HEVC cannot satisfy the requested profile; falling back to hardware AVC")
             }
             return selected
         }
 
-        Log.e(
-            "OpenStreamEncoder",
-            "No hardware surface encoder can satisfy ${width}x${height}@${fps} " +
-                "at ${bitrate / 1_000_000} Mbps",
-        )
         throw IllegalStateException(
-            "OpenStream needs a hardware AVC/HEVC encoder that supports the selected stream profile",
+            "Không có bộ mã hóa phần cứng đáp ứng ${width}x${height}@${fps}, " +
+                "${bitrate / 1_000_000} Mbps, $bitrateMode, $profilePreference",
         )
     }
+
+    private fun bitrateModeSupported(
+        capabilities: MediaCodecInfo.EncoderCapabilities,
+        mode: VideoBitrateMode,
+    ): Boolean {
+        val codecMode = mode.mediaCodecModeOrNull() ?: return true
+        return capabilities.isBitrateModeSupported(codecMode)
+    }
+
+    private fun VideoBitrateMode.mediaCodecModeOrNull(): Int? = when (this) {
+        VideoBitrateMode.SystemDefault -> null
+        VideoBitrateMode.Cbr -> MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR
+        VideoBitrateMode.Vbr -> MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR
+    }
+
+    private fun AvcProfilePreference.toCodecProfileOrNull(): Int? = when (this) {
+        AvcProfilePreference.Auto -> null
+        AvcProfilePreference.Baseline -> MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline
+        AvcProfilePreference.Main -> MediaCodecInfo.CodecProfileLevel.AVCProfileMain
+        AvcProfilePreference.High -> MediaCodecInfo.CodecProfileLevel.AVCProfileHigh
+    }
+
+    private fun avcProfileName(profile: Int): String = when (profile) {
+        MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline -> "Baseline"
+        MediaCodecInfo.CodecProfileLevel.AVCProfileMain -> "Main"
+        MediaCodecInfo.CodecProfileLevel.AVCProfileHigh -> "High"
+        else -> profile.toString()
+    }
+
+    private fun is4k(width: Int, height: Int): Boolean = width >= 3840 && height >= 2160
 
     private fun codecConfigFrom(format: MediaFormat): ByteArray? {
         val output = ByteArrayOutputStream()
@@ -361,6 +434,7 @@ class MediaCodecVideoEncoder(
     }
 
     companion object {
+        private const val TAG = "OpenStreamEncoder"
         private const val CALLBACK_THREAD_JOIN_TIMEOUT_MS = 500L
     }
 }
