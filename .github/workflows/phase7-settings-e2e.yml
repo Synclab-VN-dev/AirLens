@@ -115,19 +115,20 @@ jobs:
           echo "ADB target: $adb_serial"
           echo "Scope: functional UI/profile/preset evidence only; no LAN discovery/performance acceptance"
 
+      - name: Reset OpenStream test packages
+        shell: bash
+        run: |
+          serial='${{ steps.device.outputs.adb_serial }}'
+          adb -s "$serial" uninstall dev.openstream.app.test || true
+          adb -s "$serial" uninstall dev.openstream.app || true
+
       - name: Install app and instrumentation APKs
         shell: bash
         run: |
           set -euo pipefail
           serial='${{ steps.device.outputs.adb_serial }}'
-          if ! adb -s "$serial" install -r -t dist/openstream-android.apk; then
-            adb -s "$serial" uninstall dev.openstream.app || true
-            adb -s "$serial" install -r -t dist/openstream-android.apk
-          fi
-          if ! adb -s "$serial" install -r -t dist/openstream-android-test.apk; then
-            adb -s "$serial" uninstall dev.openstream.app.test || true
-            adb -s "$serial" install -r -t dist/openstream-android-test.apk
-          fi
+          adb -s "$serial" install -t dist/openstream-android.apk
+          adb -s "$serial" install -t dist/openstream-android-test.apk
           adb -s "$serial" shell pm grant dev.openstream.app android.permission.CAMERA
           adb -s "$serial" shell pm grant dev.openstream.app android.permission.RECORD_AUDIO
 
@@ -145,7 +146,7 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           [[ $status -eq 0 ]]
-          grep -q 'OK (1 test)' build/phase7-settings-e2e/instrumentation.txt
+          grep -q 'OK (2 tests)' build/phase7-settings-e2e/instrumentation.txt
 
       - name: Record device context
         if: always()
