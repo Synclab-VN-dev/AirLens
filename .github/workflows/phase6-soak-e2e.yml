@@ -206,6 +206,12 @@ jobs:
           echo "Receiver port: $receiver_port"
           echo "Mode: ${{ github.event_name == 'push' && 'Tailscale functional smoke (not performance acceptance)' || 'manual soak' }}"
 
+      - name: Reset OpenStream test packages
+        shell: bash
+        run: |
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app.test || true
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app || true
+
       - name: Validate soak harness
         run: |
           python3 -m py_compile tools/phase3_device_e2e.py tools/phase6_soak_e2e.py tools/phase6_reconnect_e2e.py
