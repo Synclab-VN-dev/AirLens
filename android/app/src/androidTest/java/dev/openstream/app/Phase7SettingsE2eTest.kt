@@ -155,14 +155,24 @@ class Phase7SettingsE2eTest {
         assertEquals(listOf("Studio A", "Studio B"), stored.map { it.name })
 
         // Reuse Studio A and verify that endpoint settings are restored by the UI action.
+        // Programmatic Spinner selection on a real device does not guarantee that the
+        // framework dispatches onItemSelected before the next synthetic click. Drive the
+        // registered listener explicitly so this test exercises the same selected state
+        // a real user tap would establish before pressing Apply.
         instrumentation.runOnMainSync {
             val indexA = (0 until profileSpinner.count).first { index ->
                 profileSpinner.getItemAtPosition(index).toString().contains("Studio A")
             }
-            profileSpinner.setSelection(indexA)
+            profileSpinner.setSelection(indexA, false)
+            assertEquals(indexA, profileSpinner.selectedItemPosition)
+            profileSpinner.onItemSelectedListener?.onItemSelected(
+                profileSpinner,
+                null,
+                indexA,
+                profileSpinner.getItemIdAtPosition(indexA),
+            )
+            useProfile.performClick()
         }
-        instrumentation.waitForIdleSync()
-        instrumentation.runOnMainSync { useProfile.performClick() }
         instrumentation.waitForIdleSync()
         assertEquals("Studio A", StreamProfileStore.active(context)?.name)
         assertEquals(
@@ -181,15 +191,22 @@ class Phase7SettingsE2eTest {
         assertNotNull(profileName.error)
         assertEquals(2, StreamProfileStore.list(context).size)
 
-        // Delete Studio B using the real UI action.
+        // Delete Studio B using the real UI action. Keep selection dispatch deterministic
+        // for the same reason as the Apply flow above.
         instrumentation.runOnMainSync {
             val indexB = (0 until profileSpinner.count).first { index ->
                 profileSpinner.getItemAtPosition(index).toString().contains("Studio B")
             }
-            profileSpinner.setSelection(indexB)
+            profileSpinner.setSelection(indexB, false)
+            assertEquals(indexB, profileSpinner.selectedItemPosition)
+            profileSpinner.onItemSelectedListener?.onItemSelected(
+                profileSpinner,
+                null,
+                indexB,
+                profileSpinner.getItemIdAtPosition(indexB),
+            )
+            deleteProfile.performClick()
         }
-        instrumentation.waitForIdleSync()
-        instrumentation.runOnMainSync { deleteProfile.performClick() }
         instrumentation.waitForIdleSync()
         assertEquals(listOf("Studio A"), StreamProfileStore.list(context).map { it.name })
 
