@@ -21,6 +21,7 @@ endif()
 add_library(openstream-obs MODULE
     src/async-control-client.cpp
     src/openstream-dock.cpp
+    src/openstream-legacy-visibility.cpp
     src/openstream-source.cpp
 )
 
