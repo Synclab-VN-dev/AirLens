@@ -24,6 +24,17 @@ add_library(openstream-obs MODULE
     src/openstream-source.cpp
 )
 
+if (WIN32)
+    configure_file(
+        src/openstream-version.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/openstream-version.rc
+        @ONLY
+    )
+    target_sources(openstream-obs PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/openstream-version.rc
+    )
+endif()
+
 if (BUILD_TESTING)
     add_executable(openstream-obs-contract-tests
         tests/test_contracts.cpp
@@ -136,3 +147,4 @@ endif()
 
 message(STATUS "Building OpenStream OBS source with FFmpeg SRT input support.")
 message(STATUS "OpenStream OBS baseline: ${OPENSTREAM_OBS_BASELINE}; FFmpeg ABI: ${OPENSTREAM_FFMPEG_ABI}")
+message(STATUS "OpenStream build identity: ${OPENSTREAM_VERSION}")
