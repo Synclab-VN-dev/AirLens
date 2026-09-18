@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings redesign tokens (st_*). Light values; dark overrides in values-night/. -->
+<resources>
+    <color name="st_bg">#FFF5F7FB</color>
+    <color name="st_card">#FFFFFFFF</color>
+    <color name="st_card2">#FFF5F7FB</color>
+    <color name="st_line">#FFEBEBED</color>
+    <color name="st_t1">#FF1E1E1E</color>
+    <color name="st_t2">#FF535353</color>
+    <color name="st_t3">#FF8A8F98</color>
+    <color name="st_accent">#FF0062FF</color>
+    <color name="st_accent_soft">#1A0062FF</color>
+    <color name="st_on_accent">#FFFFFFFF</color>
+    <color name="st_chip">#FFF0F2F6</color>
+    <color name="st_ok">#FF00A06C</color>
+    <color name="st_warn">#FFB57400</color>
+    <color name="st_err">#FFD8362B</color>
+    <color name="st_info_bg">#FF1E1E1E</color>
+
+    <!-- Theme-invariant: the device report card is dark in both themes. -->
+    <color name="st_report_text">#E6FFFFFF</color>
+    <color name="st_report_label">#9EFFFFFF</color>
+    <color name="st_report_hint">#8CFFFFFF</color>
+    <color name="st_report_line">#1FFFFFFF</color>
+    <color name="st_report_chip">#12FFFFFF</color>
+    <color name="st_report_faded">#61FFFFFF</color>
+    <color name="st_scrim">#99000000</color>
+    <color name="st_knob">#FFFFFFFF</color>
+</resources>

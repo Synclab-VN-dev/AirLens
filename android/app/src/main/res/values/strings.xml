@@ -53,30 +53,180 @@
     <string name="settings_save_connect">Save &amp; Connect</string>
     <string name="settings_save">Save Settings</string>
 
-    <!-- Settings Help Descriptions -->
-    <string name="help_capability_mode">Chọn độ phân giải và tốc độ khung hình. Chỉ các tổ hợp được thiết bị hỗ trợ (camera + bộ mã hóa H.264) mới xuất hiện trong danh sách.</string>
+    <!-- ============ Settings redesign (st_*) ============ -->
+    <!-- Header -->
+    <string name="st_title">Settings</string>
+    <string name="st_reset">Reset</string>
+    <string name="st_back_glyph">‹</string>
+    <string name="st_chevron">›</string>
 
-    <string name="help_video_bitrate">Tốc độ dữ liệu video (Mbps). Cao hơn = chất lượng tốt hơn nhưng tiêu tốn nhiều băng thông hơn.\n\nKhuyến nghị:\n• 1080p30: 12 Mbps\n• 1080p60: 20 Mbps\n• 4K30: 30 Mbps\n• 4K60: 35 Mbps\n\nNhập giá trị: 1-200 Mbps</string>
+    <!-- Sections -->
+    <string name="st_section_profile">PROFILE</string>
+    <string name="st_section_quick">QUICK SETUP</string>
+    <string name="st_section_audio">AUDIO</string>
+    <string name="st_section_connection">CONNECTION</string>
+    <string name="st_section_advanced">ADVANCED</string>
+    <string name="st_section_report">DEVICE REPORT · READ ONLY</string>
 
-    <string name="help_bitrate_mode">Chế độ mã hóa tốc độ bit:\n\n• CBR (Constant Bit Rate): Tốc độ cố định, phù hợp cho streaming ổn định\n• VBR (Variable Bit Rate): Tốc độ thay đổi theo độ phức tạp khung hình, tiết kiệm dữ liệu hơn</string>
+    <!-- Profile card -->
+    <string name="st_no_profile_title">No saved profile</string>
+    <string name="st_no_profile_sub">You can still edit and save this configuration — profiles only store presets you want to reuse.</string>
+    <string name="st_create_profile">Create profile</string>
+    <string name="st_profile_meta">Active profile · %1$d saved</string>
+    <string name="st_profile_active_chip">ACTIVE</string>
 
-    <string name="help_h264_profile">Mức độ nén H.264:\n\n• Main: Chuẩn, tương thích tốt với hầu hết các thiết bị\n• High: Nén tốt hơn (chất lượng tương đương với bitrate thấp hơn) nhưng yêu cầu thiết bị mạnh hơn</string>
+    <!-- Quick setup -->
+    <string name="st_camera">Camera</string>
+    <string name="st_camera_sub">Lens used for the stream</string>
+    <string name="st_resolution">Resolution</string>
+    <string name="st_resolution_sub">Sets width and height automatically</string>
+    <string name="st_framerate">Frame rate</string>
+    <string name="st_framerate_sub">Frames per second</string>
+    <string name="st_fps_value">%1$d FPS</string>
+    <string name="st_mode_unsupported_title">%1$s isn\'t supported by this phone\'s H.264 encoder at %2$d Mbps.</string>
+    <string name="st_mode_unsupported_sub">Camera2 reports the sensor mode, but the hardware encoder tops out below it. Nothing is blocked until you connect.</string>
+    <string name="st_switch_to">Switch to %1$s</string>
+    <string name="st_quality">Quality</string>
+    <string name="st_quality_sub">Video bitrate</string>
+    <string name="st_bitrate_value">%1$d Mbps</string>
+    <string name="st_badge_recommended">Recommended</string>
+    <string name="st_badge_above">Above recommended</string>
+    <string name="st_badge_below">Below recommended</string>
+    <string name="st_rec_footer">Recommended %1$d–%2$d for %3$s</string>
+    <string name="st_codec_max">50 (codec max)</string>
+    <string name="st_codec_max_limited">50 · codec max ≈%1$d Mbps</string>
 
-    <string name="help_keyframe_interval">Khoảng cách giữa các khung hình khóa (tính bằng giây). Giá trị nhỏ = khởi động nhanh hơn nhưng dữ liệu lớn. Mặc định: 2 giây</string>
+    <!-- Lens names -->
+    <string name="st_lens_back">Back camera</string>
+    <string name="st_lens_ultrawide">Ultrawide</string>
+    <string name="st_lens_telephoto">Telephoto</string>
+    <string name="st_lens_front">Front camera</string>
 
-    <string name="help_bframes">B-frame (Bidirectional frames) giúp nén tốt hơn. Bật nếu bộ mã hóa hỗ trợ để tiết kiệm dữ liệu.</string>
+    <!-- Audio -->
+    <string name="st_microphone">Microphone</string>
+    <string name="st_audio_on">Streaming mic audio to OBS</string>
+    <string name="st_audio_off">Off — OBS receives video only</string>
+    <string name="st_audio_summary">%1$s kHz · %2$s · %3$d kbps</string>
+    <string name="st_mono">Mono</string>
+    <string name="st_stereo">Stereo</string>
 
-    <string name="help_audio_sample_rate">Tần số lấy mẫu âm thanh (Hz). Cao hơn = chất lượng tốt hơn.\n\nChuẩn:\n• 44100 Hz: CD quality\n• 48000 Hz: Professional audio/video</string>
+    <!-- Connection -->
+    <string name="st_obs_computer">OBS computer</string>
+    <string name="st_obs_computer_sub">IP address or hostname of the computer running OBS</string>
+    <string name="st_host_unset">Not set</string>
+    <string name="st_host_error">Not a valid IP address or hostname. Tap to fix — example 192.168.1.5</string>
+    <string name="st_srt_transport">SRT transport</string>
+    <string name="st_srt_transport_sub">How the video travels to OBS</string>
+    <string name="st_srt_summary">Port %1$d · %2$d ms</string>
 
-    <string name="help_audio_channels">Số kênh âm thanh:\n\n• 1: Mono (một kênh)\n• 2: Stereo (hai kênh)</string>
+    <!-- Advanced -->
+    <string name="st_encoder_internals">Encoder internals</string>
+    <string name="st_advanced_preview_closed">H.264 profile, bitrate mode, B-frames, keyframes, custom size</string>
+    <string name="st_advanced_preview_open">Collapse — defaults are fine for most setups</string>
+    <string name="st_advanced_hint">Defaults are safe. Change these only when OBS reports decode problems.</string>
+    <string name="st_bitrate_mode">Bitrate mode</string>
+    <string name="st_h264_profile">H.264 profile</string>
+    <string name="st_avc_note_auto">Auto lets the encoder choose — High for 4K, Main below it.</string>
+    <string name="st_avc_note_unavailable">High profile unavailable: this phone\'s hardware encoder only advertises Baseline and Main.</string>
+    <string name="st_bframes">B-frames</string>
+    <string name="st_bframes_sub">Smaller files, slightly higher latency. Off for live.</string>
+    <string name="st_keyframe">Keyframe interval</string>
+    <string name="st_keyframe_sub">1–10 s · shorter reconnects faster</string>
+    <string name="st_keyframe_value">%1$d s</string>
+    <string name="st_custom_size">Custom size</string>
+    <string name="st_custom_size_sub">Type width / height / FPS yourself instead of a video mode</string>
+    <string name="st_custom_warn">Custom sizes are validated against the encoder only when you save. Video mode presets are checked as you pick.</string>
+    <string name="st_width">Width</string>
+    <string name="st_height">Height</string>
+    <string name="st_fps">FPS</string>
 
-    <string name="help_audio_bitrate">Tốc độ dữ liệu âm thanh (kbps). Cao hơn = chất lượng tốt hơn.\n\nKhuyến nghị:\n• 128 kbps: Chất lượng cao\n• 64 kbps: Chất lượng trung bình\n• 32 kbps: Chất lượng thấp</string>
+    <!-- Device report -->
+    <string name="st_report_hint_text">What this phone reports. Nothing here is a setting.</string>
+    <string name="st_report_camera_id">Camera ID</string>
+    <string name="st_report_encoder">H.264 encoder</string>
+    <string name="st_report_encoder_hw">Hardware</string>
+    <string name="st_report_encoder_unknown">Not verified</string>
+    <string name="st_report_high">High profile</string>
+    <string name="st_report_high_yes">Available</string>
+    <string name="st_report_high_no">Not available</string>
+    <string name="st_report_codec_max">Codec max bitrate</string>
+    <string name="st_report_codec_max_value">≈ %1$d Mbps</string>
+    <string name="st_report_camera_level">Camera2 support level</string>
+    <string name="st_report_verified_modes">Verified modes on %1$s</string>
 
-    <string name="help_obs_host">Địa chỉ IP hoặc tên máy của máy tính chạy OBS. VD: 192.168.1.100 hoặc mycomputer.local</string>
+    <!-- Action bar -->
+    <string name="st_save">Save</string>
+    <string name="st_save_connect">Save &amp; Connect</string>
+    <string name="st_connecting">Connecting…</string>
+    <string name="st_blocked_host">1 field needs fixing before you can connect — OBS computer.</string>
+    <string name="st_blocked_mode">Video mode unavailable on this phone — switch mode to connect.</string>
+    <string name="st_save_caption">Save = store only · Save &amp; Connect = store and connect now</string>
 
-    <string name="help_obs_port">Cổng SRT mà OBS đang lắng nghe. Mặc định: 9000. Phải khớp với cổng trong tùy chọn OBS Streaming phần cứng.</string>
+    <!-- Toasts -->
+    <string name="st_toast_saved">Configuration saved. Not connected.</string>
+    <string name="st_toast_profile_saved">Profile “%1$s” saved.</string>
+    <string name="st_toast_profile_used">Using profile “%1$s”.</string>
+    <string name="st_toast_profile_deleted">Profile “%1$s” deleted.</string>
+    <string name="st_toast_mode_unavailable">%1$s is unavailable on this device.</string>
+    <string name="st_toast_high_unavailable">High profile is not offered by this phone\'s encoder.</string>
+    <string name="st_toast_fix_host">Check the OBS computer address before saving.</string>
+    <string name="st_toast_hw_reject">This lens/resolution/FPS/bitrate/profile combination is not supported by the hardware codec</string>
 
-    <string name="help_latency">Độ trễ SRT (ms). Giá trị cao = buffer lớn hơn = ổn định hơn nhưng trễ lâu hơn.\n\nKhuyến nghị:\n• 120-500ms: Mạng nhanh\n• 1000-2000ms: Mạng chậm hoặc không ổn định</string>
+    <!-- Sheets -->
+    <string name="st_sheet_done">Done</string>
+    <string name="st_sheet_profile_title">Profiles</string>
+    <string name="st_sheet_profile_sub">A profile stores every setting on this screen.</string>
+    <string name="st_sheet_profile_footer">Long-press a profile to rename or delete it. Saving a profile never connects.</string>
+    <string name="st_sheet_profile_new">+ New profile from current settings</string>
+    <string name="st_sheet_profile_new_sub">Save what is on screen now under a new name</string>
+    <string name="st_profile_mark_active">Active</string>
+    <string name="st_profile_mark_use">Use</string>
+    <string name="st_sheet_camera_title">Camera</string>
+    <string name="st_sheet_camera_sub">Which lens feeds the stream.</string>
+    <string name="st_sheet_camera_footer">Only lenses this phone actually reports are listed.</string>
+    <string name="st_lens_back_sub">Best sensor. Recommended for 4K.</string>
+    <string name="st_lens_ultrawide_sub">Back camera, widest field of view</string>
+    <string name="st_lens_tele_sub">Back camera, tighter framing</string>
+    <string name="st_lens_front_sub">Selfie sensor, 1080p only on most phones</string>
+    <string name="st_sheet_res_title">Resolution</string>
+    <string name="st_sheet_res_sub">Sets width and height. Frame rate stays at %1$d FPS.</string>
+    <string name="st_sheet_res_footer">Bitrate follows the pair you end up with — currently %1$d–%2$d Mbps recommended.</string>
+    <string name="st_sheet_fps_title">Frame rate</string>
+    <string name="st_sheet_fps_sub">Applies to %1$s. Width and height do not change.</string>
+    <string name="st_sheet_fps_footer">Unsupported pairs stay visible with the reason — they are never silently hidden.</string>
+    <string name="st_pair_note">Pairs to %1$s · %2$d–%3$d Mbps</string>
+    <string name="st_pair_unsupported">Not supported: the hardware H.264 encoder does not confirm %1$d×%2$d at %3$d FPS with %4$s.</string>
+    <string name="st_fps_vendor_locked">Not supported: this phone doesn\'t offer %1$d FPS to third-party apps via Camera2 — only the manufacturer\'s own camera app can use it. The hardware encoder itself supports it.</string>
+    <string name="st_sheet_audio_title">Audio</string>
+    <string name="st_sheet_audio_sub">Defaults match what OBS expects. Change only if your mixer differs.</string>
+    <string name="st_sheet_audio_footer">Ranges: 8–192 kHz · 1–2 channels · 32–512 kbps.</string>
+    <string name="st_sample_rate">Sample rate</string>
+    <string name="st_channels">Channels</string>
+    <string name="st_channels_sub">Mono is enough for a single mic</string>
+    <string name="st_audio_bitrate">Audio bitrate</string>
+    <string name="st_sheet_conn_title">Connection</string>
+    <string name="st_sheet_conn_sub">Two different ports live here. They are not the same thing.</string>
+    <string name="st_sheet_conn_footer">SRT latency is a buffer, not a delay budget: 120 ms on studio Wi-Fi, 2000 ms on LTE.</string>
+    <string name="st_obs_port">OBS port</string>
+    <string name="st_obs_port_sub">Port OBS listens on — where this phone sends video</string>
+    <string name="st_listen_port">Listening port</string>
+    <string name="st_listen_port_sub">Port this phone opens so OBS can pull the stream instead. Used only when OBS is the caller.</string>
+    <string name="st_latency">SRT latency</string>
+    <string name="st_latency_sub">20–10000 ms buffer against packet loss</string>
 
-    <string name="help_listening_port">Cổng lắng nghe khi thiết bị hoạt động ở chế độ máy chủ (nhận kết nối từ các client khác). Mặc định: 9000</string>
+    <!-- Dialogs -->
+    <string name="st_reset_title">Reset settings?</string>
+    <string name="st_reset_message">All fields return to safe defaults. Nothing is saved until you tap Save.</string>
+    <string name="st_rename">Rename</string>
+    <string name="st_delete">Delete</string>
+    <string name="st_cancel">Cancel</string>
+    <string name="st_ok">OK</string>
+    <string name="st_delete_confirm">Delete profile “%1$s”?</string>
+    <string name="st_new_profile_title">New profile</string>
+    <string name="st_rename_profile_title">Rename profile</string>
+    <string name="st_profile_name_hint">Profile name, e.g. Studio 4K30</string>
+    <string name="st_profile_name_invalid">Name must be 1–40 characters.</string>
+
+    <!-- Footer -->
+    <string name="st_version_footer">OpenStream v%1$s (%2$s) · About</string>
 </resources>

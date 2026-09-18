@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenStream</string>
+
+    <!-- Camera controls -->
+    <string name="lens_back_wide">1×</string>
+    <string name="lens_back_ultrawide">0.5×</string>
+    <string name="lens_back_telephoto">2×</string>
+    <string name="lens_front">Camera trước</string>
+
+    <!-- Buttons (main screen) -->
+    <string name="btn_screen_on">Màn hình</string>
+    <string name="btn_screen_on_active">Màn hình ✓</string>
+    <string name="btn_flip_camera">LẬT</string>
+    <string name="btn_connect">KẾT NỐI</string>
+    <string name="btn_stop">DỪNG</string>
+    <string name="btn_settings">CÀI ĐẶT</string>
+    <string name="btn_save">LƯU THAY ĐỔI</string>
+    <string name="btn_back">QUAY LẠI</string>
+
+    <!-- Status -->
+    <string name="status_ready">SẴN SÀNG</string>
+    <string name="status_waiting">Chọn một slot camera OBS</string>
+    <string name="status_streaming">TRỰC TIẾP → %1$s</string>
+    <string name="status_stopped">ĐÃ DỪNG</string>
+    <string name="status_no_slots">KHÔNG TÌM THẤY SLOT CAMERA OBS</string>
+
+    <!-- Sections -->
+    <string name="section_connection">KẾT NỐI</string>
+    <string name="section_manual">NÂNG CAO</string>
+    <string name="section_settings">CÀI ĐẶT</string>
+    <string name="section_obs_slots">CAMERA OBS</string>
+
+    <!-- Hints -->
+    <string name="hint_obs_host">Địa chỉ IP máy OBS</string>
+    <string name="hint_obs_port">Cổng (9000)</string>
+    <string name="hint_latency">Độ trễ (120)</string>
+    <string name="hint_listening_port">Cổng lắng nghe</string>
+
+    <!-- Info -->
+    <string name="info_listener">Cổng SRT %1$d · %2$dx%3$d@%4$d · %5$d Mbps</string>
+
+    <!-- Zoom -->
+    <string name="zoom_label">%1$.1f×</string>
+
+    <!-- Settings labels (legacy) -->
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_obs_host">MÁY OBS</string>
+    <string name="settings_obs_port">CỔNG OBS</string>
+    <string name="settings_latency">ĐỘ TRỄ (ms)</string>
+    <string name="settings_listening_port">CỔNG LẮNG NGHE</string>
+    <string name="screen_off_overlay_description">Màn hình đã tắt bớt. Chạm để hiện lại điều khiển.</string>
+    <string name="settings_save_connect">Lưu &amp; Kết nối</string>
+    <string name="settings_save">Lưu cài đặt</string>
+
+    <!-- ============ Settings redesign (st_*) ============ -->
+    <!-- Header -->
+    <string name="st_title">Cài đặt</string>
+    <string name="st_reset">Đặt lại</string>
+    <string name="st_back_glyph">‹</string>
+    <string name="st_chevron">›</string>
+
+    <!-- Sections -->
+    <string name="st_section_profile">PROFILE</string>
+    <string name="st_section_quick">THIẾT LẬP NHANH</string>
+    <string name="st_section_audio">ÂM THANH</string>
+    <string name="st_section_connection">KẾT NỐI</string>
+    <string name="st_section_advanced">NÂNG CAO</string>
+    <string name="st_section_report">BÁO CÁO THIẾT BỊ · CHỈ ĐỌC</string>
+
+    <!-- Profile card -->
+    <string name="st_no_profile_title">Chưa có profile</string>
+    <string name="st_no_profile_sub">Bạn vẫn có thể sửa và lưu cấu hình này — profile chỉ lưu các preset bạn muốn dùng lại.</string>
+    <string name="st_create_profile">Tạo profile</string>
+    <string name="st_profile_meta">Profile đang dùng · %1$d đã lưu</string>
+    <string name="st_profile_active_chip">ĐANG DÙNG</string>
+
+    <!-- Quick setup -->
+    <string name="st_camera">Camera</string>
+    <string name="st_camera_sub">Ống kính dùng để phát</string>
+    <string name="st_resolution">Độ phân giải</string>
+    <string name="st_resolution_sub">Tự điền chiều rộng và chiều cao</string>
+    <string name="st_framerate">Tốc độ khung hình</string>
+    <string name="st_framerate_sub">Số khung hình mỗi giây</string>
+    <string name="st_fps_value">%1$d FPS</string>
+    <string name="st_mode_unsupported_title">%1$s không được encoder H.264 của máy hỗ trợ ở %2$d Mbps.</string>
+    <string name="st_mode_unsupported_sub">Camera2 báo chế độ cảm biến, nhưng encoder phần cứng không đạt tới. Chưa có gì bị chặn cho tới khi kết nối.</string>
+    <string name="st_switch_to">Chuyển sang %1$s</string>
+    <string name="st_quality">Chất lượng</string>
+    <string name="st_quality_sub">Bitrate video</string>
+    <string name="st_bitrate_value">%1$d Mbps</string>
+    <string name="st_badge_recommended">Khuyến nghị</string>
+    <string name="st_badge_above">Cao hơn khuyến nghị</string>
+    <string name="st_badge_below">Thấp hơn khuyến nghị</string>
+    <string name="st_rec_footer">Khuyến nghị %1$d–%2$d cho %3$s</string>
+    <string name="st_codec_max">50 (max codec)</string>
+    <string name="st_codec_max_limited">50 · max codec ≈%1$d Mbps</string>
+
+    <!-- Lens names -->
+    <string name="st_lens_back">Camera sau</string>
+    <string name="st_lens_ultrawide">Góc siêu rộng</string>
+    <string name="st_lens_telephoto">Tele</string>
+    <string name="st_lens_front">Camera trước</string>
+
+    <!-- Audio -->
+    <string name="st_microphone">Micro</string>
+    <string name="st_audio_on">Đang gửi âm thanh micro tới OBS</string>
+    <string name="st_audio_off">Tắt — OBS chỉ nhận hình</string>
+    <string name="st_audio_summary">%1$s kHz · %2$s · %3$d kbps</string>
+    <string name="st_mono">Mono</string>
+    <string name="st_stereo">Stereo</string>
+
+    <!-- Connection -->
+    <string name="st_obs_computer">Máy tính OBS</string>
+    <string name="st_obs_computer_sub">Địa chỉ IP hoặc tên máy đang chạy OBS</string>
+    <string name="st_host_unset">Chưa đặt</string>
+    <string name="st_host_error">Không phải IP hoặc hostname hợp lệ. Chạm để sửa — ví dụ 192.168.1.5</string>
+    <string name="st_srt_transport">Truyền tải SRT</string>
+    <string name="st_srt_transport_sub">Cách video đi tới OBS</string>
+    <string name="st_srt_summary">Cổng %1$d · %2$d ms</string>
+
+    <!-- Advanced -->
+    <string name="st_encoder_internals">Thông số encoder</string>
+    <string name="st_advanced_preview_closed">Profile H.264, chế độ bitrate, B-frames, keyframe, kích thước tùy chỉnh</string>
+    <string name="st_advanced_preview_open">Thu gọn — mặc định là ổn cho hầu hết trường hợp</string>
+    <string name="st_advanced_hint">Mặc định là an toàn. Chỉ đổi khi OBS báo lỗi giải mã.</string>
+    <string name="st_bitrate_mode">Chế độ bitrate</string>
+    <string name="st_h264_profile">Profile H.264</string>
+    <string name="st_avc_note_auto">Auto để encoder tự chọn — High cho 4K, Main cho thấp hơn.</string>
+    <string name="st_avc_note_unavailable">High không khả dụng: encoder phần cứng của máy chỉ có Baseline và Main.</string>
+    <string name="st_bframes">B-frames</string>
+    <string name="st_bframes_sub">File nhỏ hơn, trễ cao hơn một chút. Nên tắt khi live.</string>
+    <string name="st_keyframe">Chu kỳ keyframe</string>
+    <string name="st_keyframe_sub">1–10 s · ngắn hơn thì kết nối lại nhanh hơn</string>
+    <string name="st_keyframe_value">%1$d s</string>
+    <string name="st_custom_size">Kích thước tùy chỉnh</string>
+    <string name="st_custom_size_sub">Tự nhập rộng / cao / FPS thay vì chọn chế độ video</string>
+    <string name="st_custom_warn">Kích thước tùy chỉnh chỉ được kiểm tra với encoder khi bấm Lưu. Chế độ chuẩn được kiểm tra ngay khi chọn.</string>
+    <string name="st_width">Rộng</string>
+    <string name="st_height">Cao</string>
+    <string name="st_fps">FPS</string>
+
+    <!-- Device report -->
+    <string name="st_report_hint_text">Thông số máy báo. Không có gì ở đây là cài đặt.</string>
+    <string name="st_report_camera_id">ID camera</string>
+    <string name="st_report_encoder">Encoder H.264</string>
+    <string name="st_report_encoder_hw">Phần cứng</string>
+    <string name="st_report_encoder_unknown">Chưa xác minh</string>
+    <string name="st_report_high">Profile High</string>
+    <string name="st_report_high_yes">Khả dụng</string>
+    <string name="st_report_high_no">Không khả dụng</string>
+    <string name="st_report_codec_max">Bitrate tối đa của codec</string>
+    <string name="st_report_codec_max_value">≈ %1$d Mbps</string>
+    <string name="st_report_camera_level">Mức hỗ trợ Camera2</string>
+    <string name="st_report_verified_modes">Chế độ đã xác minh trên %1$s</string>
+
+    <!-- Action bar -->
+    <string name="st_save">Lưu</string>
+    <string name="st_save_connect">Lưu &amp; Kết nối</string>
+    <string name="st_connecting">Đang kết nối…</string>
+    <string name="st_blocked_host">1 mục cần sửa trước khi kết nối — Máy tính OBS.</string>
+    <string name="st_blocked_mode">Chế độ video không khả dụng trên máy này — đổi chế độ để kết nối.</string>
+    <string name="st_save_caption">Lưu = chỉ lưu · Lưu &amp; Kết nối = lưu và kết nối ngay</string>
+
+    <!-- Toasts -->
+    <string name="st_toast_saved">Đã lưu cấu hình. Chưa kết nối.</string>
+    <string name="st_toast_profile_saved">Đã lưu profile “%1$s”.</string>
+    <string name="st_toast_profile_used">Đang dùng profile “%1$s”.</string>
+    <string name="st_toast_profile_deleted">Đã xóa profile “%1$s”.</string>
+    <string name="st_toast_mode_unavailable">%1$s không khả dụng trên thiết bị này.</string>
+    <string name="st_toast_high_unavailable">Encoder của máy không hỗ trợ profile High.</string>
+    <string name="st_toast_fix_host">Kiểm tra địa chỉ máy OBS trước khi lưu.</string>
+    <string name="st_toast_hw_reject">Tổ hợp ống kính/độ phân giải/FPS/bitrate/profile này không được codec phần cứng hỗ trợ</string>
+
+    <!-- Sheets -->
+    <string name="st_sheet_done">Xong</string>
+    <string name="st_sheet_profile_title">Profile</string>
+    <string name="st_sheet_profile_sub">Một profile lưu mọi cài đặt trên màn hình này.</string>
+    <string name="st_sheet_profile_footer">Nhấn giữ một profile để đổi tên hoặc xóa. Lưu profile không bao giờ tự kết nối.</string>
+    <string name="st_sheet_profile_new">+ Profile mới từ cài đặt hiện tại</string>
+    <string name="st_sheet_profile_new_sub">Lưu những gì đang hiển thị dưới một tên mới</string>
+    <string name="st_profile_mark_active">Đang dùng</string>
+    <string name="st_profile_mark_use">Dùng</string>
+    <string name="st_sheet_camera_title">Camera</string>
+    <string name="st_sheet_camera_sub">Ống kính nào cấp hình cho stream.</string>
+    <string name="st_sheet_camera_footer">Chỉ liệt kê các ống kính máy thực sự báo.</string>
+    <string name="st_lens_back_sub">Cảm biến tốt nhất. Khuyến nghị cho 4K.</string>
+    <string name="st_lens_ultrawide_sub">Camera sau, góc nhìn rộng nhất</string>
+    <string name="st_lens_tele_sub">Camera sau, khung hình hẹp hơn</string>
+    <string name="st_lens_front_sub">Cảm biến selfie, đa số máy chỉ 1080p</string>
+    <string name="st_sheet_res_title">Độ phân giải</string>
+    <string name="st_sheet_res_sub">Đặt chiều rộng và cao. Tốc độ khung giữ ở %1$d FPS.</string>
+    <string name="st_sheet_res_footer">Bitrate đi theo cặp bạn chọn — hiện khuyến nghị %1$d–%2$d Mbps.</string>
+    <string name="st_sheet_fps_title">Tốc độ khung hình</string>
+    <string name="st_sheet_fps_sub">Áp dụng cho %1$s. Chiều rộng và cao không đổi.</string>
+    <string name="st_sheet_fps_footer">Các cặp không hỗ trợ vẫn hiển thị kèm lý do — không bao giờ bị ẩn im lặng.</string>
+    <string name="st_pair_note">Ghép thành %1$s · %2$d–%3$d Mbps</string>
+    <string name="st_pair_unsupported">Không hỗ trợ: encoder H.264 phần cứng không xác nhận %1$d×%2$d ở %3$d FPS với %4$s.</string>
+    <string name="st_fps_vendor_locked">Không hỗ trợ: máy không mở %1$d FPS cho ứng dụng bên thứ ba qua Camera2 — chỉ app camera của hãng dùng được. Encoder phần cứng vẫn hỗ trợ.</string>
+    <string name="st_sheet_audio_title">Âm thanh</string>
+    <string name="st_sheet_audio_sub">Mặc định khớp với OBS. Chỉ đổi nếu mixer của bạn khác.</string>
+    <string name="st_sheet_audio_footer">Phạm vi: 8–192 kHz · 1–2 kênh · 32–512 kbps.</string>
+    <string name="st_sample_rate">Tần số lấy mẫu</string>
+    <string name="st_channels">Số kênh</string>
+    <string name="st_channels_sub">Mono là đủ cho một micro</string>
+    <string name="st_audio_bitrate">Bitrate âm thanh</string>
+    <string name="st_sheet_conn_title">Kết nối</string>
+    <string name="st_sheet_conn_sub">Có hai cổng khác nhau ở đây. Chúng không giống nhau.</string>
+    <string name="st_sheet_conn_footer">Độ trễ SRT là bộ đệm, không phải mức trễ cố định: 120 ms cho Wi-Fi studio, 2000 ms cho LTE.</string>
+    <string name="st_obs_port">Cổng OBS</string>
+    <string name="st_obs_port_sub">Cổng OBS lắng nghe — nơi điện thoại gửi video tới</string>
+    <string name="st_listen_port">Cổng lắng nghe</string>
+    <string name="st_listen_port_sub">Cổng điện thoại mở để OBS kéo stream về. Chỉ dùng khi OBS là bên gọi.</string>
+    <string name="st_latency">Độ trễ SRT</string>
+    <string name="st_latency_sub">Bộ đệm 20–10000 ms chống mất gói</string>
+
+    <!-- Dialogs -->
+    <string name="st_reset_title">Đặt lại cài đặt?</string>
+    <string name="st_reset_message">Mọi mục trở về mặc định an toàn. Chưa có gì được lưu cho tới khi bấm Lưu.</string>
+    <string name="st_rename">Đổi tên</string>
+    <string name="st_delete">Xóa</string>
+    <string name="st_cancel">Hủy</string>
+    <string name="st_ok">OK</string>
+    <string name="st_delete_confirm">Xóa profile “%1$s”?</string>
+    <string name="st_new_profile_title">Profile mới</string>
+    <string name="st_rename_profile_title">Đổi tên profile</string>
+    <string name="st_profile_name_hint">Tên profile, ví dụ Studio 4K30</string>
+    <string name="st_profile_name_invalid">Tên phải từ 1–40 ký tự.</string>
+
+    <!-- Footer -->
+    <string name="st_version_footer">OpenStream v%1$s (%2$s) · Giới thiệu</string>
+</resources>

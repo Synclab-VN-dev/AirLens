@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings redesign tokens (st_*), dark theme values. -->
+<resources>
+    <color name="st_bg">#FF0E0F11</color>
+    <color name="st_card">#FF191B1E</color>
+    <color name="st_card2">#FF22252A</color>
+    <color name="st_line">#1AFFFFFF</color>
+    <color name="st_t1">#FFFFFFFF</color>
+    <color name="st_t2">#A3FFFFFF</color>
+    <color name="st_t3">#66FFFFFF</color>
+    <color name="st_accent">#FF2F7DFF</color>
+    <color name="st_accent_soft">#292F7DFF</color>
+    <color name="st_on_accent">#FFFFFFFF</color>
+    <color name="st_chip">#12FFFFFF</color>
+    <color name="st_ok">#FF00C382</color>
+    <color name="st_warn">#FFFFB546</color>
+    <color name="st_err">#FFFF6A5E</color>
+    <color name="st_info_bg">#FF101215</color>
+</resources>
