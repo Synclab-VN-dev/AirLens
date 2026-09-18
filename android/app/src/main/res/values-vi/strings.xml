@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">OpenStream</string>
+
+    <!-- Camera controls -->
+    <string name="lens_back_wide">1×</string>
+    <string name="lens_back_ultrawide">0.5×</string>
+    <string name="lens_back_telephoto">2×</string>
+    <string name="lens_front">Camera trước</string>
+
     <!-- Buttons (main screen) -->
     <string name="btn_screen_on">Màn hình</string>
     <string name="btn_screen_on_active">Màn hình ✓</string>
@@ -13,6 +21,7 @@
     <!-- Status -->
     <string name="status_ready">SẴN SÀNG</string>
     <string name="status_waiting">Chọn một slot camera OBS</string>
+    <string name="status_streaming">TRỰC TIẾP → %1$s</string>
     <string name="status_stopped">ĐÃ DỪNG</string>
     <string name="status_no_slots">KHÔNG TÌM THẤY SLOT CAMERA OBS</string>
 
@@ -28,6 +37,12 @@
     <string name="hint_latency">Độ trễ (120)</string>
     <string name="hint_listening_port">Cổng lắng nghe</string>
 
+    <!-- Info -->
+    <string name="info_listener">Cổng SRT %1$d · %2$dx%3$d@%4$d · %5$d Mbps</string>
+
+    <!-- Zoom -->
+    <string name="zoom_label">%1$.1f×</string>
+
     <!-- Settings labels (legacy) -->
     <string name="settings_title">Cài đặt</string>
     <string name="settings_obs_host">MÁY OBS</string>
@@ -42,6 +57,8 @@
     <!-- Header -->
     <string name="st_title">Cài đặt</string>
     <string name="st_reset">Đặt lại</string>
+    <string name="st_back_glyph">‹</string>
+    <string name="st_chevron">›</string>
 
     <!-- Sections -->
     <string name="st_section_profile">PROFILE</string>
@@ -65,11 +82,13 @@
     <string name="st_resolution_sub">Tự điền chiều rộng và chiều cao</string>
     <string name="st_framerate">Tốc độ khung hình</string>
     <string name="st_framerate_sub">Số khung hình mỗi giây</string>
+    <string name="st_fps_value">%1$d FPS</string>
     <string name="st_mode_unsupported_title">%1$s không được encoder H.264 của máy hỗ trợ ở %2$d Mbps.</string>
     <string name="st_mode_unsupported_sub">Camera2 báo chế độ cảm biến, nhưng encoder phần cứng không đạt tới. Chưa có gì bị chặn cho tới khi kết nối.</string>
     <string name="st_switch_to">Chuyển sang %1$s</string>
     <string name="st_quality">Chất lượng</string>
     <string name="st_quality_sub">Bitrate video</string>
+    <string name="st_bitrate_value">%1$d Mbps</string>
     <string name="st_badge_recommended">Khuyến nghị</string>
     <string name="st_badge_above">Cao hơn khuyến nghị</string>
     <string name="st_badge_below">Thấp hơn khuyến nghị</string>
@@ -87,6 +106,9 @@
     <string name="st_microphone">Micro</string>
     <string name="st_audio_on">Đang gửi âm thanh micro tới OBS</string>
     <string name="st_audio_off">Tắt — OBS chỉ nhận hình</string>
+    <string name="st_audio_summary">%1$s kHz · %2$s · %3$d kbps</string>
+    <string name="st_mono">Mono</string>
+    <string name="st_stereo">Stereo</string>
 
     <!-- Connection -->
     <string name="st_obs_computer">Máy tính OBS</string>
@@ -106,17 +128,21 @@
     <string name="st_h264_profile">Profile H.264</string>
     <string name="st_avc_note_auto">Auto để encoder tự chọn — High cho 4K, Main cho thấp hơn.</string>
     <string name="st_avc_note_unavailable">High không khả dụng: encoder phần cứng của máy chỉ có Baseline và Main.</string>
+    <string name="st_bframes">B-frames</string>
     <string name="st_bframes_sub">File nhỏ hơn, trễ cao hơn một chút. Nên tắt khi live.</string>
     <string name="st_keyframe">Chu kỳ keyframe</string>
     <string name="st_keyframe_sub">1–10 s · ngắn hơn thì kết nối lại nhanh hơn</string>
+    <string name="st_keyframe_value">%1$d s</string>
     <string name="st_custom_size">Kích thước tùy chỉnh</string>
     <string name="st_custom_size_sub">Tự nhập rộng / cao / FPS thay vì chọn chế độ video</string>
     <string name="st_custom_warn">Kích thước tùy chỉnh chỉ được kiểm tra với encoder khi bấm Lưu. Chế độ chuẩn được kiểm tra ngay khi chọn.</string>
     <string name="st_width">Rộng</string>
     <string name="st_height">Cao</string>
+    <string name="st_fps">FPS</string>
 
     <!-- Device report -->
     <string name="st_report_hint_text">Thông số máy báo. Không có gì ở đây là cài đặt.</string>
+    <string name="st_report_camera_id">ID camera</string>
     <string name="st_report_encoder">Encoder H.264</string>
     <string name="st_report_encoder_hw">Phần cứng</string>
     <string name="st_report_encoder_unknown">Chưa xác minh</string>
@@ -124,6 +150,7 @@
     <string name="st_report_high_yes">Khả dụng</string>
     <string name="st_report_high_no">Không khả dụng</string>
     <string name="st_report_codec_max">Bitrate tối đa của codec</string>
+    <string name="st_report_codec_max_value">≈ %1$d Mbps</string>
     <string name="st_report_camera_level">Mức hỗ trợ Camera2</string>
     <string name="st_report_verified_modes">Chế độ đã xác minh trên %1$s</string>
 
@@ -193,6 +220,7 @@
     <string name="st_rename">Đổi tên</string>
     <string name="st_delete">Xóa</string>
     <string name="st_cancel">Hủy</string>
+    <string name="st_ok">OK</string>
     <string name="st_delete_confirm">Xóa profile “%1$s”?</string>
     <string name="st_new_profile_title">Profile mới</string>
     <string name="st_rename_profile_title">Đổi tên profile</string>
