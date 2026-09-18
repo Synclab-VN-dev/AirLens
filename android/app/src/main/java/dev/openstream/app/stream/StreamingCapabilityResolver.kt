@@ -25,6 +25,10 @@ class StreamingCapabilityResolver(context: Context) {
     private val cameraProbe = CameraCapabilityProbe(context)
     private val encoderProbe = HardwareVideoCapabilityProbe()
 
+    /** Encoder phần cứng có encode được (width×height)@fps không — độc lập với camera. */
+    fun encoderSupports(width: Int, height: Int, fps: Int): Boolean =
+        encoderProbe.maxBitrateFor(width, height, fps) != null
+
     fun resolve(bitrate: Int): List<SupportedStreamMode> {
         return resolve(
             bitrate = bitrate,

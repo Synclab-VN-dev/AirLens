@@ -2,18 +2,19 @@ package dev.openstream.app
 
 import android.content.Context
 import android.content.Intent
-import android.widget.EditText
-import android.widget.Spinner
+import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.openstream.app.stream.ConnectionTarget
 import dev.openstream.app.stream.StreamConfig
 import dev.openstream.app.stream.StreamConfigStore
-import dev.openstream.app.stream.StreamPreset
 import dev.openstream.app.stream.StreamProfileStore
 import dev.openstream.app.stream.StreamingCapabilityResolver
+import dev.openstream.app.ui.PillToggle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,8 +23,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class Phase7SettingsE2eTest {
 
-    @Test
-    fun currentConfigCanBeSavedWithoutCreatingProfile() {
+    private fun launchSettings(host: String): Pair<SettingsActivity, Context> {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val base = StreamConfig.Baseline1080p30
@@ -37,7 +37,7 @@ class Phase7SettingsE2eTest {
         context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(SettingsActivity.KEY_CAPABILITY_LENS, lens.name)
-            .putString(SettingsActivity.KEY_OBS_HOST, "")
+            .putString(SettingsActivity.KEY_OBS_HOST, host)
             .putInt(SettingsActivity.KEY_OBS_PORT, ConnectionTarget.DEFAULT_PORT)
             .putInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
             .apply()
@@ -48,15 +48,31 @@ class Phase7SettingsE2eTest {
             },
         ) as SettingsActivity
         instrumentation.waitForIdleSync()
+        return activity to context
+    }
 
-        val profileSpinner = activity.findViewById<Spinner>(R.id.settingsProfile)
+    private fun sheetRowByTag(activity: SettingsActivity, tag: String): View? {
+        val content = activity.findViewById<LinearLayout>(R.id.sheetContent)
+        return (0 until content.childCount)
+            .map(content::getChildAt)
+            .firstOrNull { it.tag == tag }
+    }
+
+    @Test
+    fun currentConfigCanBeSavedWithoutCreatingProfile() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val (activity, context) = launchSettings(host = "")
+        val base = StreamConfig.Baseline1080p30
+
         val saveSettings = activity.findViewById<TextView>(R.id.btnSaveSettings)
+        val profileEmpty = activity.findViewById<View>(R.id.settingsProfileEmpty)
 
         instrumentation.runOnMainSync {
             assertTrue("Saving the current config must not require a profile", saveSettings.isEnabled)
-            assertTrue(
-                "Empty profile state must explain that direct config editing is still available",
-                profileSpinner.getItemAtPosition(0).toString().contains("vẫn sửa config"),
+            assertEquals(
+                "Empty profile state must be shown when no profile exists",
+                View.VISIBLE,
+                profileEmpty.visibility,
             )
             saveSettings.performClick()
         }
@@ -66,66 +82,37 @@ class Phase7SettingsE2eTest {
         assertEquals(base.width, StreamConfigStore.load(context).width)
         assertEquals(base.height, StreamConfigStore.load(context).height)
         assertEquals(base.fps, StreamConfigStore.load(context).fps)
+        assertFalse("Save must keep the settings screen open", activity.isFinishing)
+
+        instrumentation.runOnMainSync { activity.finish() }
         StreamProfileStore.clear(context)
     }
 
     @Test
-    fun profileCrudPresetSelectionAndCapabilityReasonsWorkOnRealDevice() {
+    fun profileCrudSheetPairingAndValidationWorkOnRealDevice() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val context = instrumentation.targetContext
-        val base = StreamConfig.Baseline1080p30
-        StreamConfigStore.save(context, base)
-        StreamConfig.installRuntimeConfig(base)
-        StreamProfileStore.clear(context)
-
+        val (activity, context) = launchSettings(host = "100.64.0.10")
         val resolver = StreamingCapabilityResolver(context)
-        val baselineModes = resolver.resolve(base)
-        assertTrue("Device must expose at least one Camera2 + hardware AVC mode", baselineModes.isNotEmpty())
-        val lens = baselineModes.first().lens
-        context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(SettingsActivity.KEY_CAPABILITY_LENS, lens.name)
-            .putString(SettingsActivity.KEY_OBS_HOST, "100.64.0.10")
-            .putInt(SettingsActivity.KEY_OBS_PORT, ConnectionTarget.DEFAULT_PORT)
-            .putInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
-            .apply()
 
-        val activity = instrumentation.startActivitySync(
-            Intent(context, SettingsActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            },
-        ) as SettingsActivity
-        instrumentation.waitForIdleSync()
-
-        val profileSpinner = activity.findViewById<Spinner>(R.id.settingsProfile)
-        val profileName = activity.findViewById<EditText>(R.id.settingsProfileName)
-        val host = activity.findViewById<EditText>(R.id.settingsObsHost)
-        val newProfile = activity.findViewById<TextView>(R.id.btnNewProfile)
-        val saveProfile = activity.findViewById<TextView>(R.id.btnSaveProfile)
-        val useProfile = activity.findViewById<TextView>(R.id.btnUseProfile)
-        val deleteProfile = activity.findViewById<TextView>(R.id.btnDeleteProfile)
-        val presetSpinner = activity.findViewById<Spinner>(R.id.settingsPreset)
-        val presetNote = activity.findViewById<TextView>(R.id.settingsPresetNote)
-        val width = activity.findViewById<EditText>(R.id.settingsWidth)
-        val height = activity.findViewById<EditText>(R.id.settingsHeight)
-        val fps = activity.findViewById<EditText>(R.id.settingsFps)
+        val audioToggle = activity.findViewById<PillToggle>(R.id.settingsAudioEnabled)
+        val rowAudioDetail = activity.findViewById<View>(R.id.rowAudioDetail)
+        val rowResolution = activity.findViewById<View>(R.id.rowResolution)
+        val rowFrameRate = activity.findViewById<View>(R.id.rowFrameRate)
+        val blockedText = activity.findViewById<TextView>(R.id.settingsBlockedText)
+        val saveSettings = activity.findViewById<TextView>(R.id.btnSaveSettings)
+        val saveAndConnect = activity.findViewById<View>(R.id.btnSaveAndConnect)
 
         instrumentation.runOnMainSync {
-            assertNotNull(profileSpinner)
-            assertNotNull(presetSpinner)
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsCapabilityLens))
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsCapabilityMode))
-            assertNotNull(activity.findViewById<android.view.View>(R.id.settingsAudioEnabled))
-            assertNotNull(host)
-            assertEquals(StreamPreset.entries.size, presetSpinner.count)
+            assertNotNull(activity.findViewById<View>(R.id.settingsProfileCard))
+            assertNotNull(audioToggle)
+            assertNotNull(activity.findViewById<View>(R.id.settingsWidth))
+            assertNotNull(activity.findViewById<View>(R.id.settingsHeight))
+            assertNotNull(activity.findViewById<View>(R.id.settingsFps))
         }
 
-        // Create the first profile through the real Settings UI.
+        // --- Profile CRUD through the same code paths the sheet UI uses ---
         instrumentation.runOnMainSync {
-            newProfile.performClick()
-            profileName.setText("Studio A")
-            host.setText("100.64.0.10")
-            saveProfile.performClick()
+            assertTrue(activity.createProfileNamed("Studio A"))
         }
         instrumentation.waitForIdleSync()
         var stored = StreamProfileStore.list(context)
@@ -133,46 +120,27 @@ class Phase7SettingsE2eTest {
         assertEquals("Studio A", stored.single().name)
         assertEquals("Studio A", StreamProfileStore.active(context)?.name)
 
-        // Update the selected profile instead of creating a duplicate.
+        // Saving under the same name updates instead of duplicating.
         instrumentation.runOnMainSync {
-            host.setText("100.64.0.20")
-            saveProfile.performClick()
+            activity.setHostForTest("100.64.0.20")
+            assertTrue(activity.createProfileNamed("Studio A"))
         }
         instrumentation.waitForIdleSync()
         stored = StreamProfileStore.list(context)
         assertEquals(1, stored.size)
         assertEquals("100.64.0.20", stored.single().obsHost)
 
-        // Create a second profile.
         instrumentation.runOnMainSync {
-            newProfile.performClick()
-            profileName.setText("Studio B")
-            host.setText("100.64.0.30")
-            saveProfile.performClick()
+            activity.setHostForTest("100.64.0.30")
+            assertTrue(activity.createProfileNamed("Studio B"))
         }
         instrumentation.waitForIdleSync()
         stored = StreamProfileStore.list(context)
         assertEquals(listOf("Studio A", "Studio B"), stored.map { it.name })
 
-        // Reuse Studio A and verify that endpoint settings are restored by the UI action.
-        // Programmatic Spinner selection on a real device does not guarantee that the
-        // framework dispatches onItemSelected before the next synthetic click. Drive the
-        // registered listener explicitly so this test exercises the same selected state
-        // a real user tap would establish before pressing Apply.
-        instrumentation.runOnMainSync {
-            val indexA = (0 until profileSpinner.count).first { index ->
-                profileSpinner.getItemAtPosition(index).toString().contains("Studio A")
-            }
-            profileSpinner.setSelection(indexA, false)
-            assertEquals(indexA, profileSpinner.selectedItemPosition)
-            profileSpinner.onItemSelectedListener?.onItemSelected(
-                profileSpinner,
-                null,
-                indexA,
-                profileSpinner.getItemIdAtPosition(indexA),
-            )
-            useProfile.performClick()
-        }
+        // Using a profile restores its endpoint settings.
+        val idA = stored.first { it.name == "Studio A" }.id
+        instrumentation.runOnMainSync { assertTrue(activity.useProfileById(idA)) }
         instrumentation.waitForIdleSync()
         assertEquals("Studio A", StreamProfileStore.active(context)?.name)
         assertEquals(
@@ -181,97 +149,119 @@ class Phase7SettingsE2eTest {
                 .getString(SettingsActivity.KEY_OBS_HOST, null),
         )
 
-        // Invalid profile names are blocked before persistence.
-        instrumentation.runOnMainSync {
-            newProfile.performClick()
-            profileName.setText("   ")
-            saveProfile.performClick()
-        }
-        instrumentation.waitForIdleSync()
-        assertNotNull(profileName.error)
+        // Invalid profile names are rejected before persistence.
+        instrumentation.runOnMainSync { assertFalse(activity.createProfileNamed("   ")) }
         assertEquals(2, StreamProfileStore.list(context).size)
 
-        // Delete Studio B using the real UI action. Keep selection dispatch deterministic
-        // for the same reason as the Apply flow above.
-        instrumentation.runOnMainSync {
-            val indexB = (0 until profileSpinner.count).first { index ->
-                profileSpinner.getItemAtPosition(index).toString().contains("Studio B")
-            }
-            profileSpinner.setSelection(indexB, false)
-            assertEquals(indexB, profileSpinner.selectedItemPosition)
-            profileSpinner.onItemSelectedListener?.onItemSelected(
-                profileSpinner,
-                null,
-                indexB,
-                profileSpinner.getItemIdAtPosition(indexB),
-            )
-            deleteProfile.performClick()
-        }
+        // Delete keeps the remaining profile.
+        val idB = StreamProfileStore.list(context).first { it.name == "Studio B" }.id
+        instrumentation.runOnMainSync { assertTrue(activity.deleteProfileById(idB)) }
         instrumentation.waitForIdleSync()
         assertEquals(listOf("Studio A"), StreamProfileStore.list(context).map { it.name })
 
-        // Every preset must expose the same supported/unsupported truth as the real capability resolver.
-        val labels = (0 until presetSpinner.count).map { index ->
-            presetSpinner.getItemAtPosition(index).toString()
-        }
-        val options = StreamPreset.entries.map { preset ->
-            val candidate = preset.applyTo(base)
-            val supported = resolver.resolve(candidate).any { mode ->
-                mode.lens == lens &&
-                    mode.width == preset.width &&
-                    mode.height == preset.height &&
-                    mode.fps == preset.fps
-            }
-            preset to supported
-        }
-        options.forEachIndexed { index, (preset, supported) ->
+        // --- Resolution sheet exposes the resolver's supported/unsupported truth ---
+        val state = activity.currentUiStateForTest()
+        val lensName = state["lens"] as String
+        val currentFps = state["fps"] as Int
+        val probeModes = resolver.resolve(8_000_000).filter { it.lens.name == lensName }
+        assertTrue("Lens must expose at least one verified mode", probeModes.isNotEmpty())
+
+        instrumentation.runOnMainSync { rowResolution.performClick() }
+        instrumentation.waitForIdleSync()
+        probeModes.map { it.width to it.height }.distinct().forEach { (w, h) ->
+            val row = sheetRowByTag(activity, "res:${w}x${h}")
+            assertNotNull("Sheet must list every distinct resolution the lens reports", row)
+            val supported = probeModes.any { it.width == w && it.height == h && it.fps == currentFps }
+            // Locale-independent check: unsupported rows carry the "✕" mark.
+            val mark = row!!.findViewById<TextView>(R.id.sheetRowMark).text.toString()
             assertEquals(
-                "Preset label must expose real unsupported state for ${preset.displayName}",
+                "Row ${w}x$h must expose the real pairing truth at $currentFps FPS",
                 !supported,
-                labels[index].contains("Không hỗ trợ"),
+                mark == "✕",
             )
         }
 
-        // As with profile selection above, dispatch the listener explicitly so the
-        // instrumentation assertion observes the state established by a real tap instead
-        // of racing Spinner's asynchronous selection callback.
-        val supportedIndex = options.indexOfFirst { it.second }
-        if (supportedIndex >= 0) {
-            val preset = options[supportedIndex].first
+        // Picking a supported resolution applies W/H and the recommended bitrate default.
+        val supportedPair = probeModes.filter { it.fps == currentFps }
+            .map { it.width to it.height }
+            .distinct()
+            .firstOrNull()
+        if (supportedPair != null) {
+            val (w, h) = supportedPair
             instrumentation.runOnMainSync {
-                presetSpinner.setSelection(supportedIndex, false)
-                assertEquals(supportedIndex, presetSpinner.selectedItemPosition)
-                presetSpinner.onItemSelectedListener?.onItemSelected(
-                    presetSpinner,
-                    null,
-                    supportedIndex,
-                    presetSpinner.getItemIdAtPosition(supportedIndex),
-                )
+                sheetRowByTag(activity, "res:${w}x${h}")!!.performClick()
             }
             instrumentation.waitForIdleSync()
-            assertEquals(preset.width.toString(), width.text.toString())
-            assertEquals(preset.height.toString(), height.text.toString())
-            assertEquals(preset.fps.toString(), fps.text.toString())
+            val after = activity.currentUiStateForTest()
+            assertEquals(w, after["width"])
+            assertEquals(h, after["height"])
+            assertEquals(false, after["customSize"])
         }
 
-        val unsupportedIndex = options.indexOfFirst { !it.second }
-        if (unsupportedIndex >= 0) {
-            instrumentation.runOnMainSync {
-                presetSpinner.setSelection(unsupportedIndex, false)
-                assertEquals(unsupportedIndex, presetSpinner.selectedItemPosition)
-                presetSpinner.onItemSelectedListener?.onItemSelected(
-                    presetSpinner,
-                    null,
-                    unsupportedIndex,
-                    presetSpinner.getItemIdAtPosition(unsupportedIndex),
-                )
-            }
+        // --- Frame rate sheet lists every fps the lens reports ---
+        instrumentation.runOnMainSync { rowFrameRate.performClick() }
+        instrumentation.waitForIdleSync()
+        probeModes.map { it.fps }.distinct().forEach { fps ->
+            assertNotNull("Sheet must list $fps FPS", sheetRowByTag(activity, "fps:$fps"))
+        }
+
+        // Canonical fps values are never silently hidden: 60 FPS must be listed even
+        // when the camera doesn't report it, greyed with an explanation, and tapping
+        // it must not change the selected fps.
+        val row60 = sheetRowByTag(activity, "fps:60")
+        assertNotNull("60 FPS must always be listed (greyed when unsupported)", row60)
+        if (probeModes.none { it.fps == 60 }) {
+            val note60 = row60!!.findViewById<TextView>(R.id.sheetRowNote).text.toString()
+            assertTrue("Unsupported 60 FPS row must carry a reason", note60.isNotBlank())
+            val fpsBefore = activity.currentUiStateForTest()["fps"]
+            instrumentation.runOnMainSync { row60.performClick() }
             instrumentation.waitForIdleSync()
-            assertTrue(
-                "Unsupported preset must explain why it cannot be applied",
-                presetNote.text.toString().contains("không", ignoreCase = true),
+            assertEquals(
+                "Tapping unsupported 60 FPS must not change the selection",
+                fpsBefore,
+                activity.currentUiStateForTest()["fps"],
             )
         }
+        instrumentation.runOnMainSync { activity.onBackPressed() } // close sheet
+        instrumentation.waitForIdleSync()
+
+        // --- Audio toggle drives the detail row visibility ---
+        val audioBefore = activity.currentUiStateForTest()["audioEnabled"] as Boolean
+        instrumentation.runOnMainSync { audioToggle.performClick() }
+        instrumentation.waitForIdleSync()
+        instrumentation.runOnMainSync {
+            assertEquals(!audioBefore, activity.currentUiStateForTest()["audioEnabled"])
+            assertEquals(
+                if (audioBefore) View.GONE else View.VISIBLE,
+                rowAudioDetail.visibility,
+            )
+            audioToggle.performClick()
+        }
+        instrumentation.waitForIdleSync()
+
+        // --- Invalid host blocks Save & Connect but never Save ---
+        instrumentation.runOnMainSync { activity.setHostForTest("192.168.1.5.5") }
+        instrumentation.waitForIdleSync()
+        instrumentation.runOnMainSync {
+            assertFalse("Invalid host must disable Save & Connect", saveAndConnect.isEnabled)
+            assertEquals(View.VISIBLE, blockedText.visibility)
+            assertTrue("Save must stay available so the user can fix config", saveSettings.isEnabled)
+        }
+
+        // --- Reset restores defaults in the UI without persisting ---
+        val persistedHost = context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(SettingsActivity.KEY_OBS_HOST, null)
+        instrumentation.runOnMainSync { activity.resetToDefaults() }
+        instrumentation.waitForIdleSync()
+        val reset = activity.currentUiStateForTest()
+        assertEquals(StreamConfig.Baseline1080p30.bitrateMbps, reset["bitrateMbps"])
+        assertEquals("", reset["host"])
+        assertEquals(
+            "Reset must not persist anything until Save",
+            persistedHost,
+            context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(SettingsActivity.KEY_OBS_HOST, null),
+        )
 
         instrumentation.runOnMainSync { activity.finish() }
         StreamProfileStore.clear(context)

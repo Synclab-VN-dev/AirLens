@@ -1,691 +1,1168 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/os_background"
-    android:fillViewport="true"
+    android:background="@color/st_bg"
     android:fitsSystemWindows="true">
 
+    <!-- ============ Layer 1: main column ============ -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp"
-        android:paddingTop="56dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cấu hình phát"
-            android:textColor="@color/os_text_primary"
-            android:textSize="32sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="28dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PROFILE"
-            android:textColor="@color/os_text_secondary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="12dp" />
-
-        <Spinner
-            android:id="@+id/settingsProfile"
+        <!-- Header -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:id="@+id/btnBackSettings"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="@string/st_back_glyph"
+                android:textSize="22sp"
+                android:textColor="@color/st_t1" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="14dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/st_title"
+                    android:textSize="20sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/st_t1" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnResetSettings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:text="@string/st_reset"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/st_accent" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/st_line" />
+
+        <!-- Scrollable content -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="18dp">
+
+                <!-- PROFILE -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_profile" />
+
+                <LinearLayout
+                    android:id="@+id/settingsProfileCard"
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/settingsProfileRow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/settingsProfileName"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="17sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <TextView
+                                android:id="@+id/settingsProfileMeta"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="12sp"
+                                android:textColor="@color/st_t3" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsProfileActiveChip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="5dp"
+                            android:paddingBottom="5dp"
+                            android:background="@drawable/bg_st_chip"
+                            android:text="@string/st_profile_active_chip"
+                            android:textSize="11sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_ok" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/settingsProfileEmpty"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/st_no_profile_title"
+                            android:textSize="15sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_t1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/st_no_profile_sub"
+                            android:textSize="13sp"
+                            android:textColor="@color/st_t2" />
+
+                        <TextView
+                            android:id="@+id/btnCreateProfile"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:paddingStart="18dp"
+                            android:paddingEnd="18dp"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp"
+                            android:background="@drawable/bg_st_pill_soft"
+                            android:text="@string/st_create_profile"
+                            android:textSize="14sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_accent" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- QUICK SETUP -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_quick" />
+
+                <LinearLayout
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/rowCamera"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_camera" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_camera_sub" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsCameraValue"
+                            style="@style/StRowValue" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <View style="@style/StDivider" />
+
+                    <LinearLayout
+                        android:id="@+id/rowResolution"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_resolution" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_resolution_sub" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsResolutionValue"
+                            style="@style/StRowValue"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_t1" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <View style="@style/StDivider" />
+
+                    <LinearLayout
+                        android:id="@+id/rowFrameRate"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_framerate" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_framerate_sub" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsFpsValue"
+                            style="@style/StRowValue"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_t1" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <View style="@style/StDivider" />
+
+                    <!-- Unsupported mode warning -->
+                    <LinearLayout
+                        android:id="@+id/settingsModeWarning"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp"
+                        android:background="@drawable/bg_st_warnstrip"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="!"
+                            android:textSize="13sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="@color/st_warn" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/settingsModeWarningTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="13sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/st_mode_unsupported_sub"
+                                android:textSize="12sp"
+                                android:textColor="@color/st_t2" />
+
+                            <TextView
+                                android:id="@+id/btnSwitchMode"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:paddingTop="10dp"
+                                android:paddingBottom="10dp"
+                                android:background="@drawable/bg_st_pill_cta"
+                                android:textSize="13sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_on_accent" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/settingsModeWarningDivider"
+                        style="@style/StDivider"
+                        android:visibility="gone" />
+
+                    <!-- Quality / bitrate -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    style="@style/StRowTitle"
+                                    android:text="@string/st_quality" />
+
+                                <TextView
+                                    style="@style/StRowVi"
+                                    android:text="@string/st_quality_sub" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/settingsBitrateValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textSize="15sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <TextView
+                                android:id="@+id/settingsBitrateBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:paddingTop="5dp"
+                                android:paddingBottom="5dp"
+                                android:background="@drawable/bg_st_chip"
+                                android:textSize="11sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_ok" />
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/settingsBitrateSlider"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:layout_marginBottom="6dp"
+                            android:min="8"
+                            android:max="50"
+                            android:progressDrawable="@drawable/st_seekbar_progress"
+                            android:thumb="@drawable/st_seekbar_thumb"
+                            android:splitTrack="false"
+                            android:paddingStart="0dp"
+                            android:paddingEnd="0dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8"
+                                android:textSize="11sp"
+                                android:textColor="@color/st_t3" />
+
+                            <TextView
+                                android:id="@+id/settingsBitrateRecLabel"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:textSize="11sp"
+                                android:textColor="@color/st_t3" />
+
+                            <TextView
+                                android:id="@+id/settingsBitrateMaxLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textSize="11sp"
+                                android:textColor="@color/st_t3" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- AUDIO -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_audio" />
+
+                <LinearLayout
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        style="@style/StRow"
+                        android:clickable="false">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_microphone" />
+
+                            <TextView
+                                android:id="@+id/settingsAudioStatus"
+                                style="@style/StRowVi" />
+                        </LinearLayout>
+
+                        <dev.openstream.app.ui.PillToggle
+                            android:id="@+id/settingsAudioEnabled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/settingsAudioDivider"
+                        style="@style/StDivider" />
+
+                    <LinearLayout
+                        android:id="@+id/rowAudioDetail"
+                        style="@style/StRow">
+
+                        <TextView
+                            android:id="@+id/settingsAudioSummary"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textSize="14sp"
+                            android:textColor="@color/st_t2" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- CONNECTION -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_connection" />
+
+                <LinearLayout
+                    android:id="@+id/settingsConnectionCard"
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/rowObsHost"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_obs_computer" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_obs_computer_sub" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsHostValue"
+                            style="@style/StRowValue"
+                            android:maxWidth="130dp" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/settingsHostError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="10dp"
+                        android:background="@drawable/bg_st_warnstrip"
+                        android:text="@string/st_host_error"
+                        android:textSize="12sp"
+                        android:textColor="@color/st_err"
+                        android:visibility="gone" />
+
+                    <View style="@style/StDivider" />
+
+                    <LinearLayout
+                        android:id="@+id/rowSrt"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_srt_transport" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_srt_transport_sub" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsSrtValue"
+                            style="@style/StRowValue" />
+
+                        <TextView
+                            style="@style/StChevron" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- ADVANCED -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_advanced" />
+
+                <LinearLayout
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/rowAdvancedHeader"
+                        style="@style/StRow">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_encoder_internals" />
+
+                            <TextView
+                                android:id="@+id/settingsAdvancedPreview"
+                                style="@style/StRowVi" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/settingsAdvancedChevron"
+                            style="@style/StChevron" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/settingsAdvancedBody"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <View style="@style/StDivider" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="4dp"
+                            android:text="@string/st_advanced_hint"
+                            android:textSize="12sp"
+                            android:textColor="@color/st_t3" />
+
+                        <!-- Bitrate mode -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                android:text="@string/st_bitrate_mode"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/segBitrateSystem"
+                                    style="@style/StSegment" />
+
+                                <TextView
+                                    android:id="@+id/segBitrateCbr"
+                                    style="@style/StSegment"
+                                    android:layout_marginStart="8dp" />
+
+                                <TextView
+                                    android:id="@+id/segBitrateVbr"
+                                    style="@style/StSegment"
+                                    android:layout_marginStart="8dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- H.264 profile -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="16dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                android:text="@string/st_h264_profile"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/segAvcAuto"
+                                    style="@style/StSegment" />
+
+                                <TextView
+                                    android:id="@+id/segAvcBaseline"
+                                    style="@style/StSegment"
+                                    android:layout_marginStart="8dp" />
+
+                                <TextView
+                                    android:id="@+id/segAvcMain"
+                                    style="@style/StSegment"
+                                    android:layout_marginStart="8dp" />
+
+                                <TextView
+                                    android:id="@+id/segAvcHigh"
+                                    style="@style/StSegment"
+                                    android:layout_marginStart="8dp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/settingsAvcNote"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:textSize="12sp"
+                                android:textColor="@color/st_t3" />
+                        </LinearLayout>
+
+                        <!-- B-frames -->
+                        <LinearLayout
+                            style="@style/StRow"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/st_bframes"
+                                    android:textSize="14sp"
+                                    android:fontFamily="sans-serif-medium"
+                                    android:textColor="@color/st_t1" />
+
+                                <TextView
+                                    style="@style/StRowVi"
+                                    android:text="@string/st_bframes_sub" />
+                            </LinearLayout>
+
+                            <dev.openstream.app.ui.PillToggle
+                                android:id="@+id/settingsBFrames"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+
+                        <!-- Keyframe interval -->
+                        <LinearLayout
+                            style="@style/StRow"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/st_keyframe"
+                                    android:textSize="14sp"
+                                    android:fontFamily="sans-serif-medium"
+                                    android:textColor="@color/st_t1" />
+
+                                <TextView
+                                    style="@style/StRowVi"
+                                    android:text="@string/st_keyframe_sub" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/btnKeyframeMinus"
+                                style="@style/StStepperBtn"
+                                android:text="−" />
+
+                            <TextView
+                                android:id="@+id/settingsKeyframeValue"
+                                android:layout_width="44dp"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:textSize="15sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textColor="@color/st_t1" />
+
+                            <TextView
+                                android:id="@+id/btnKeyframePlus"
+                                style="@style/StStepperBtn"
+                                android:text="+" />
+                        </LinearLayout>
+
+                        <View style="@style/StDivider" />
+
+                        <!-- Custom size -->
+                        <LinearLayout
+                            style="@style/StRow"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/st_custom_size"
+                                    android:textSize="14sp"
+                                    android:fontFamily="sans-serif-medium"
+                                    android:textColor="@color/st_t1" />
+
+                                <TextView
+                                    style="@style/StRowVi"
+                                    android:text="@string/st_custom_size_sub" />
+                            </LinearLayout>
+
+                            <dev.openstream.app.ui.PillToggle
+                                android:id="@+id/settingsCustomSize"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/settingsCustomFields"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="16dp"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        style="@style/StInputLabel"
+                                        android:text="@string/st_width" />
+
+                                    <EditText
+                                        android:id="@+id/settingsWidth"
+                                        style="@style/StInput" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="8dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        style="@style/StInputLabel"
+                                        android:text="@string/st_height" />
+
+                                    <EditText
+                                        android:id="@+id/settingsHeight"
+                                        style="@style/StInput" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="8dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        style="@style/StInputLabel"
+                                        android:text="@string/st_fps" />
+
+                                    <EditText
+                                        android:id="@+id/settingsFps"
+                                        style="@style/StInput" />
+                                </LinearLayout>
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="@string/st_custom_warn"
+                                android:textSize="12sp"
+                                android:textColor="@color/st_warn" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- DEVICE REPORT -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_report" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:background="@drawable/bg_st_report">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:text="@string/st_report_hint_text"
+                        android:textSize="12sp"
+                        android:textColor="@color/st_report_hint" />
+
+                    <LinearLayout
+                        android:id="@+id/settingsReportRows"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@color/st_report_line" />
+
+                    <TextView
+                        android:id="@+id/settingsReportLensLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:textSize="12sp"
+                        android:textColor="@color/st_report_hint" />
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/settingsReportChips"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/settingsVersionInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingTop="22dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="11sp"
+                    android:textColor="@color/st_t3" />
+            </LinearLayout>
+        </ScrollView>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/st_line" />
+
+        <!-- Action bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/st_card"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:layout_marginBottom="12dp" />
+            android:paddingTop="12dp"
+            android:paddingBottom="14dp">
 
-        <EditText
-            android:id="@+id/settingsProfileName"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Tên profile, ví dụ Studio 4K30"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:inputType="textCapSentences"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="28dp">
-
-            <Button
-                android:id="@+id/btnNewProfile"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="Mới"
-                android:textAllCaps="false"
-                android:background="@drawable/bg_minimal_btn_ghost"
-                android:textColor="@color/os_text_primary" />
-
-            <Button
-                android:id="@+id/btnUseProfile"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="Dùng"
-                android:textAllCaps="false"
-                android:background="@drawable/bg_minimal_btn_ghost"
-                android:textColor="@color/os_text_primary" />
-
-            <Button
-                android:id="@+id/btnSaveProfile"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="Lưu"
-                android:textAllCaps="false"
-                android:background="@drawable/bg_minimal_btn_ghost"
-                android:textColor="@color/os_text_primary" />
-
-            <Button
-                android:id="@+id/btnDeleteProfile"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="Xóa"
-                android:textAllCaps="false"
-                android:background="@drawable/bg_minimal_btn_ghost"
-                android:textColor="@color/os_text_primary" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CAMERA VÀ MÃ HÓA"
-            android:textColor="@color/os_text_secondary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="12dp" />
-
-        <Spinner
-            android:id="@+id/settingsPreset"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/settingsPresetNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Preset chỉ được áp dụng khi Camera2 + H.264 phần cứng xác nhận hỗ trợ."
-            android:textColor="@color/os_text_tertiary"
-            android:textSize="12sp"
-            android:layout_marginBottom="12dp" />
-
-        <Spinner
-            android:id="@+id/settingsCapabilityLens"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
             <TextView
-                android:layout_width="0dp"
+                android:id="@+id/settingsBlockedText"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Chế độ video"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpCapabilityMode"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="10dp"
+                android:textSize="12sp"
+                android:textColor="@color/st_err"
+                android:visibility="gone" />
 
-        <Spinner
-            android:id="@+id/settingsCapabilityMode"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginBottom="16dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/settingsCapabilityNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Chỉ các tổ hợp Camera2 + AVC phần cứng hợp lệ mới xuất hiện."
-            android:textColor="@color/os_text_tertiary"
-            android:textSize="12sp"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone" />
+                <TextView
+                    android:id="@+id/btnSaveSettings"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/bg_st_pill_ghost"
+                    android:text="@string/st_save"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/st_t1" />
 
-        <EditText android:id="@+id/settingsWidth" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" android:inputType="number" />
-        <EditText android:id="@+id/settingsHeight" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" android:inputType="number" />
-        <EditText android:id="@+id/settingsFps" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" android:inputType="number" />
+                <LinearLayout
+                    android:id="@+id/btnSaveAndConnect"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1.45"
+                    android:layout_marginStart="10dp"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:background="@drawable/bg_st_pill_cta">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+                    <ProgressBar
+                        android:id="@+id/settingsConnectSpinner"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginEnd="9dp"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/settingsConnectLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/st_save_connect"
+                        android:textSize="15sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/st_on_accent" />
+                </LinearLayout>
+            </LinearLayout>
+
             <TextView
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Bitrate Video (Mbps)"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpVideoBitrate"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
+                android:gravity="center"
+                android:paddingTop="9dp"
+                android:text="@string/st_save_caption"
+                android:textSize="11sp"
+                android:textColor="@color/st_t3" />
         </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsBitrateMbps"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Ví dụ: 12-35"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Chế độ Bitrate"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpBitrateMode"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <Spinner
-            android:id="@+id/settingsVideoBitrateMode"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Profile H.264"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpH264Profile"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <Spinner
-            android:id="@+id/settingsAvcProfile"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <CheckBox
-                android:id="@+id/settingsBFrames"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="B-frame"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpBFrames"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Chu kỳ Keyframe (s)"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpKeyframeInterval"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsKeyframeInterval"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Ví dụ: 2"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="ÂM THANH"
-            android:textColor="@color/os_text_secondary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="12dp" />
-
-        <CheckBox
-            android:id="@+id/settingsAudioEnabled"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Phát âm thanh từ micro"
-            android:textColor="@color/os_text_primary"
-            android:textSize="16sp"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Sample Rate (Hz)"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpAudioSampleRate"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsAudioSampleRate"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Ví dụ: 48000"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Audio Channels"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpAudioChannels"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsAudioChannels"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="1 (Mono) hoặc 2 (Stereo)"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Bitrate Âm (kbps)"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpAudioBitrate"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsAudioBitrateKbps"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Ví dụ: 128"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="KẾT NỐI SRT"
-            android:textColor="@color/os_text_secondary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="OBS Host"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpObsHost"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsObsHost"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="VD: 192.168.1.100"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:textSize="16sp"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:inputType="textUri"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="OBS Port"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpObsPort"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsObsPort"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Mặc định: 9000"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:textSize="16sp"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="SRT Latency (ms)"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpLatency"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsLatency"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="VD: 120 hoặc 2000"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:textSize="16sp"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Listening Port"
-                android:textColor="@color/os_text_primary"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
-            <ImageButton
-                android:id="@+id/helpListeningPort"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:src="@android:drawable/ic_menu_help"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
-        <EditText
-            android:id="@+id/settingsListeningPort"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:hint="Mặc định: 9000"
-            android:textColor="@color/os_text_primary"
-            android:textColorHint="@color/os_text_tertiary"
-            android:textSize="16sp"
-            android:inputType="number"
-            android:background="@drawable/bg_minimal_input"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:layout_marginBottom="32dp" />
-
-        <Button
-            android:id="@+id/btnSaveAndConnect"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:gravity="center"
-            android:background="@drawable/bg_minimal_btn"
-            android:text="Lưu và kết nối"
-            android:textAllCaps="false"
-            android:textColor="@color/os_black"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="16dp" />
-
-        <Button
-            android:id="@+id/btnSaveSettings"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:gravity="center"
-            android:background="@drawable/bg_minimal_btn_ghost"
-            android:text="Lưu cấu hình"
-            android:textAllCaps="false"
-            android:textColor="@color/os_text_primary"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="16dp" />
-
-        <Button
-            android:id="@+id/btnBackSettings"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:gravity="center"
-            android:background="@drawable/bg_minimal_btn_ghost"
-            android:text="Quay lại"
-            android:textAllCaps="false"
-            android:textColor="@color/os_text_primary"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="32dp" />
-
-        <TextView
-            android:id="@+id/settingsVersionInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:textColor="@color/os_text_tertiary"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif"
-            android:layout_marginBottom="16dp" />
-
     </LinearLayout>
-</ScrollView>
+
+    <!-- ============ Layer 2: toast ============ -->
+    <TextView
+        android:id="@+id/settingsToast"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="120dp"
+        android:padding="14dp"
+        android:background="@drawable/bg_st_toast"
+        android:elevation="8dp"
+        android:textSize="13sp"
+        android:textColor="@color/st_t1"
+        android:visibility="gone" />
+
+    <!-- ============ Layer 3: bottom sheet ============ -->
+    <View
+        android:id="@+id/sheetScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/st_scrim"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/sheetPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="@drawable/bg_st_sheet"
+        android:elevation="12dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/bg_st_sheet_handle" />
+
+        <TextView
+            android:id="@+id/sheetTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:textSize="19sp"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="@color/st_t1" />
+
+        <TextView
+            android:id="@+id/sheetSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="6dp"
+            android:textSize="13sp"
+            android:textColor="@color/st_t2" />
+
+        <ScrollView
+            android:id="@+id/sheetScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="8dp">
+
+                <LinearLayout
+                    android:id="@+id/sheetContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/sheetFooter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/st_t3"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </ScrollView>
+
+        <View style="@style/StDivider" />
+
+        <TextView
+            android:id="@+id/btnSheetDone"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_margin="12dp"
+            android:gravity="center"
+            android:background="@drawable/bg_st_pill_cta"
+            android:text="@string/st_sheet_done"
+            android:textSize="15sp"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="@color/st_on_accent" />
+    </LinearLayout>
+</FrameLayout>
