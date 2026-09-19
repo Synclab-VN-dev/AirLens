@@ -25,10 +25,10 @@ from typing import Any
 import phase3_device_e2e as p3
 import phase6_soak_e2e as p6
 
-APP_ID = "dev.openstream.app"
-TEST_PACKAGE = "dev.openstream.app.test"
+APP_ID = "com.synclab.airlens"
+TEST_PACKAGE = "com.synclab.airlens.test"
 RUNNER = "androidx.test.runner.AndroidJUnitRunner"
-TEST_CLASS = "dev.openstream.app.Phase6ReconnectE2eTest#reconnect4k30WithMicrophone"
+TEST_CLASS = "com.synclab.airlens.Phase6ReconnectE2eTest#reconnect4k30WithMicrophone"
 
 
 @dataclass(frozen=True)
@@ -188,7 +188,7 @@ def validate(
     instrumentation_text = (instrumentation.stdout or "") + (instrumentation.stderr or "")
     fatal_markers = [
         "FATAL EXCEPTION",
-        "ANR in dev.openstream.app",
+        "ANR in com.synclab.airlens",
         "MediaCodec encoder error",
         "Audio capture/encoder failed",
     ]

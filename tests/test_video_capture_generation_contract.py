@@ -2,10 +2,10 @@ from pathlib import Path
 
 
 VIDEO_ENCODER = Path(
-    "android/app/src/main/java/dev/openstream/app/encoder/MediaCodecVideoEncoder.kt"
+    "android/app/src/main/java/com/synclab/airlens/encoder/MediaCodecVideoEncoder.kt"
 )
 SRT_CLIENT = Path(
-    "android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt"
+    "android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt"
 )
 
 

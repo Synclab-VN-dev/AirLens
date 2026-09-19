@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN = ROOT / "android/app/src/main/java/dev/openstream/app/MainActivity.kt"
+MAIN = ROOT / "android/app/src/main/java/com/synclab/airlens/MainActivity.kt"
 
 
 def test_caller_transport_failure_preserves_target_and_schedules_reconnect() -> None:

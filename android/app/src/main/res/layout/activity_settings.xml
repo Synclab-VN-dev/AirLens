@@ -467,7 +467,7 @@
                                 style="@style/StRowVi" />
                         </LinearLayout>
 
-                        <dev.openstream.app.ui.PillToggle
+                        <com.synclab.airlens.ui.PillToggle
                             android:id="@+id/settingsAudioEnabled"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content" />
@@ -743,7 +743,7 @@
                                     android:text="@string/st_bframes_sub" />
                             </LinearLayout>
 
-                            <dev.openstream.app.ui.PillToggle
+                            <com.synclab.airlens.ui.PillToggle
                                 android:id="@+id/settingsBFrames"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" />
@@ -821,7 +821,7 @@
                                     android:text="@string/st_custom_size_sub" />
                             </LinearLayout>
 
-                            <dev.openstream.app.ui.PillToggle
+                            <com.synclab.airlens.ui.PillToggle
                                 android:id="@+id/settingsCustomSize"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" />

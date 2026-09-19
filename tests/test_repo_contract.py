@@ -20,8 +20,8 @@ def test_architecture_documents_practical_v1_transport() -> None:
 
 
 def test_android_project_declares_camera_media_codec_srt_discovery_boundaries() -> None:
-    app = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
-    discovery = read("android/app/src/main/java/dev/openstream/app/discovery/PhoneDiscoveryAdvertiser.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
+    discovery = read("android/app/src/main/java/com/synclab/airlens/discovery/PhoneDiscoveryAdvertiser.kt")
     manifest = read("android/app/src/main/AndroidManifest.xml")
     assert "Camera2" in app
     assert "MediaCodec" in app
@@ -31,10 +31,10 @@ def test_android_project_declares_camera_media_codec_srt_discovery_boundaries() 
     assert "startPreviewIfAllowed" in app
     assert "startPhoneServerIfAllowed" in app
     assert "MediaCodecAudioEncoder" in app
-    camera = read("android/app/src/main/java/dev/openstream/app/camera/Camera2Controller.kt")
+    camera = read("android/app/src/main/java/com/synclab/airlens/camera/Camera2Controller.kt")
     assert "CONTROL_AE_TARGET_FPS_RANGE" in camera
     assert "targetFps" in camera
-    stream_config = read("android/app/src/main/java/dev/openstream/app/stream/StreamConfig.kt")
+    stream_config = read("android/app/src/main/java/com/synclab/airlens/stream/StreamConfig.kt")
     assert "Default1080p30" in stream_config
     assert "codecPreference = CodecPreference.ForceAvc" in stream_config
     assert "MIN_BITRATE_MBPS = 8" in stream_config
@@ -50,8 +50,8 @@ def test_android_project_declares_camera_media_codec_srt_discovery_boundaries() 
 
 
 def test_android_connection_target_builds_srt_caller_url_and_pairing_targets() -> None:
-    target = read("android/app/src/main/java/dev/openstream/app/stream/ConnectionTarget.kt")
-    stream_client = read("android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt")
+    target = read("android/app/src/main/java/com/synclab/airlens/stream/ConnectionTarget.kt")
+    stream_client = read("android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt")
     assert "toSrtCallerUrl" in target
     assert "mode=caller" in target
     assert "DEFAULT_PORT = 9000" in target
@@ -146,8 +146,8 @@ def test_obs_discovery_beacons_advertise_slots_not_raw_listener_only() -> None:
 
 def test_slot_reservation_allows_owned_busy_phone_and_reconnect_hold() -> None:
     source = read("obs-plugin/src/openstream-source.cpp")
-    app = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
-    advertiser = read("android/app/src/main/java/dev/openstream/app/discovery/PhoneDiscoveryAdvertiser.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
+    advertiser = read("android/app/src/main/java/com/synclab/airlens/discovery/PhoneDiscoveryAdvertiser.kt")
     assert "entry.second.busy && entry.second.reserved_by != source_instance_id" in source
     assert "found->second.busy && found->second.reserved_by != source_instance_id" in source
     assert "set_slot_status(ctx, \"Reconnecting\")" in source
@@ -174,9 +174,9 @@ def test_auto_selected_obs_slot_sticks_to_same_phone_during_reconnect_hold() -> 
 
 
 def test_android_discovery_ui_parses_and_displays_obs_slots() -> None:
-    device = read("android/app/src/main/java/dev/openstream/app/discovery/DiscoveredObsDevice.kt")
-    discovery = read("android/app/src/main/java/dev/openstream/app/discovery/ObsDiscoveryClient.kt")
-    app = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+    device = read("android/app/src/main/java/com/synclab/airlens/discovery/DiscoveredObsDevice.kt")
+    discovery = read("android/app/src/main/java/com/synclab/airlens/discovery/ObsDiscoveryClient.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
     layout = read("android/app/src/main/res/layout/activity_main.xml")
     strings = read("android/app/src/main/res/values/strings.xml")
     assert "val sourceInstanceId" in device
@@ -197,8 +197,8 @@ def test_android_discovery_ui_parses_and_displays_obs_slots() -> None:
 
 def test_identify_camera_control_round_trip_exists() -> None:
     source = read("obs-plugin/src/openstream-source.cpp")
-    control = read("android/app/src/main/java/dev/openstream/app/control/CameraControlServer.kt")
-    app = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+    control = read("android/app/src/main/java/com/synclab/airlens/control/CameraControlServer.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
     layout = read("android/app/src/main/res/layout/activity_main.xml")
     assert "Show Slot Label on Phone" in source
     assert '"/identify"' in source
@@ -209,8 +209,8 @@ def test_identify_camera_control_round_trip_exists() -> None:
 
 
 def test_android_control_server_supports_source_reservations() -> None:
-    control = read("android/app/src/main/java/dev/openstream/app/control/CameraControlServer.kt")
-    app = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+    control = read("android/app/src/main/java/com/synclab/airlens/control/CameraControlServer.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
     assert 'path == "/reserve"' in control
     assert 'path == "/release"' in control
     assert "reservationProvider" in control
@@ -224,7 +224,7 @@ def test_android_control_server_supports_source_reservations() -> None:
 
 
 def test_camera_controller_supports_preview_before_streaming() -> None:
-    camera = read("android/app/src/main/java/dev/openstream/app/camera/Camera2Controller.kt")
+    camera = read("android/app/src/main/java/com/synclab/airlens/camera/Camera2Controller.kt")
     assert "fun startPreview()" in camera
     assert "fun startStreaming(encodedSurface: Surface)" in camera
     assert "fun stopStreaming()" in camera

@@ -10,7 +10,7 @@ def read(path: str) -> str:
 
 def test_reservation_release_is_bound_to_generation_token() -> None:
     source = read("obs-plugin/src/openstream-source.cpp")
-    control = read("android/app/src/main/java/dev/openstream/app/control/CameraControlServer.kt")
+    control = read("android/app/src/main/java/com/synclab/airlens/control/CameraControlServer.kt")
 
     assert "std::string reservation_token" in source
     assert "reservationToken" in source

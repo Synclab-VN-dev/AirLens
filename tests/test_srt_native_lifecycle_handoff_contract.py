@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-KOTLIN = ROOT / "android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt"
+KOTLIN = ROOT / "android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt"
 NATIVE = ROOT / "android/app/src/main/cpp/openstream_srt.cpp"
 
 
@@ -45,7 +45,7 @@ def test_native_connect_and_listen_publish_only_current_generation():
 
 def test_disconnect_invalidates_generation_before_native_teardown():
     native = NATIVE.read_text()
-    body = _block_after(native, "Java_dev_openstream_app_stream_SrtNativeBridge_disconnect")
+    body = _block_after(native, "Java_com_synclab_airlens_stream_SrtNativeBridge_disconnect")
     invalidate = "g_state.sender.advanceLifecycleGeneration(static_cast<uint64_t>(session_generation))"
     teardown = "g_state.sender.disconnect()"
     assert body.index(invalidate) < body.index(teardown)

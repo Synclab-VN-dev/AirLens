@@ -25,11 +25,11 @@ val openStreamVersionCode = providers.gradleProperty("openstream.versionCode")
     .map { it.toInt() }
 
 android {
-    namespace = "dev.openstream.app"
+    namespace = "com.synclab.airlens"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.openstream.app"
+        applicationId = "com.synclab.airlens"
         minSdk = 29
         targetSdk = 35
         versionCode = openStreamVersionCode.get()

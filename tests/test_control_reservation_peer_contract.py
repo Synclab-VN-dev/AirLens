@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 SERVER = Path(
-    "android/app/src/main/java/dev/openstream/app/control/CameraControlServer.kt"
+    "android/app/src/main/java/com/synclab/airlens/control/CameraControlServer.kt"
 ).read_text()
 
 
@@ -181,7 +181,7 @@ def test_unsupported_media_type_response_is_explicit():
 
 def test_duplicate_reserve_retry_cannot_reach_android_lease_scheduler():
     activity = Path(
-        "android/app/src/main/java/dev/openstream/app/MainActivity.kt"
+        "android/app/src/main/java/com/synclab/airlens/MainActivity.kt"
     ).read_text(encoding="utf-8")
 
     reserve = _function("handleReserve")

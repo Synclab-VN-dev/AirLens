@@ -55,7 +55,7 @@ jobs:
           grep -q '#define SRT_VERSION_MINOR 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
           grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
           test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
-          grep -q 'callerModeActive' android/app/src/main/java/dev/openstream/app/MainActivity.kt
+          grep -q 'callerModeActive' android/app/src/main/java/com/synclab/airlens/MainActivity.kt
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -118,7 +118,7 @@ jobs:
           set -euo pipefail
           grep -q '#define SRT_VERSION_PATCH 5' android/app/src/main/cpp/third_party/srt/include/srt/version.h
           test -f android/app/src/main/cpp/third_party/srt/PROVENANCE.md
-          grep -q 'callerModeActive' android/app/src/main/java/dev/openstream/app/MainActivity.kt
+          grep -q 'callerModeActive' android/app/src/main/java/com/synclab/airlens/MainActivity.kt
 
       - name: Download app + instrumentation APKs
         uses: actions/download-artifact@v4
@@ -181,17 +181,17 @@ jobs:
         run: |
           set -euo pipefail
           serial='${{ steps.topology.outputs.adb_serial }}'
-          adb -s "$serial" shell am force-stop dev.openstream.app || true
-          adb -s "$serial" shell am force-stop dev.openstream.app.test || true
-          adb -s "$serial" uninstall dev.openstream.app.test || true
-          adb -s "$serial" uninstall dev.openstream.app || true
+          adb -s "$serial" shell am force-stop com.synclab.airlens || true
+          adb -s "$serial" shell am force-stop com.synclab.airlens.test || true
+          adb -s "$serial" uninstall com.synclab.airlens.test || true
+          adb -s "$serial" uninstall com.synclab.airlens || true
 
-          if adb -s "$serial" shell pm path dev.openstream.app | grep -q '^package:'; then
-            echo "Không thể gỡ dev.openstream.app khỏi thiết bị Phase 4; dừng để tránh nghiệm thu APK cũ." >&2
+          if adb -s "$serial" shell pm path com.synclab.airlens | grep -q '^package:'; then
+            echo "Không thể gỡ com.synclab.airlens khỏi thiết bị Phase 4; dừng để tránh nghiệm thu APK cũ." >&2
             exit 1
           fi
-          if adb -s "$serial" shell pm path dev.openstream.app.test | grep -q '^package:'; then
-            echo "Không thể gỡ dev.openstream.app.test khỏi thiết bị Phase 4; dừng để tránh instrumentation cũ." >&2
+          if adb -s "$serial" shell pm path com.synclab.airlens.test | grep -q '^package:'; then
+            echo "Không thể gỡ com.synclab.airlens.test khỏi thiết bị Phase 4; dừng để tránh instrumentation cũ." >&2
             exit 1
           fi
 
@@ -244,7 +244,7 @@ jobs:
       - name: Stop test app
         if: always()
         run: |
-          adb -s '${{ steps.topology.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+          adb -s '${{ steps.topology.outputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Upload Phase 4 device evidence
         if: always()

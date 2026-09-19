@@ -209,8 +209,8 @@ jobs:
       - name: Reset OpenStream test packages
         shell: bash
         run: |
-          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app.test || true
-          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall dev.openstream.app || true
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall com.synclab.airlens.test || true
+          adb -s '${{ steps.lab.outputs.adb_serial }}' uninstall com.synclab.airlens || true
 
       - name: Validate soak harness
         run: |
@@ -256,7 +256,7 @@ jobs:
 
       - name: Stop test app
         if: always()
-        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Record transport context
         if: always()

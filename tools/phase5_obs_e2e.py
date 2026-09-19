@@ -21,10 +21,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-APP_ID = "dev.openstream.app"
-TEST_PACKAGE = "dev.openstream.app.test"
+APP_ID = "com.synclab.airlens"
+TEST_PACKAGE = "com.synclab.airlens.test"
 RUNNER = "androidx.test.runner.AndroidJUnitRunner"
-TEST_CLASS = "dev.openstream.app.Phase3DeviceE2eTest#stream4k30WithMicrophoneToSrtReceiver"
+TEST_CLASS = "com.synclab.airlens.Phase3DeviceE2eTest#stream4k30WithMicrophoneToSrtReceiver"
 PREFLIGHT_FILE = "phase3-device-e2e-preflight.json"
 
 RECEIVE_RE = re.compile(
