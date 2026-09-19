@@ -932,7 +932,7 @@ StreamState g_state;
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_beginSession(
+Java_com_synclab_airlens_stream_SrtNativeBridge_beginSession(
     JNIEnv *,
     jobject,
     jlong session_generation) {
@@ -941,7 +941,7 @@ Java_dev_openstream_app_stream_SrtNativeBridge_beginSession(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_connect(
+Java_com_synclab_airlens_stream_SrtNativeBridge_connect(
     JNIEnv *env,
     jobject,
     jstring url,
@@ -985,7 +985,7 @@ Java_dev_openstream_app_stream_SrtNativeBridge_connect(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_listen(
+Java_com_synclab_airlens_stream_SrtNativeBridge_listen(
     JNIEnv *env,
     jobject,
     jstring url,
@@ -1029,7 +1029,7 @@ Java_dev_openstream_app_stream_SrtNativeBridge_listen(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_sendVideo(
+Java_com_synclab_airlens_stream_SrtNativeBridge_sendVideo(
     JNIEnv *env,
     jobject,
     jbyteArray data,
@@ -1068,7 +1068,7 @@ Java_dev_openstream_app_stream_SrtNativeBridge_sendVideo(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_disconnect(
+Java_com_synclab_airlens_stream_SrtNativeBridge_disconnect(
     JNIEnv *, jobject, jlong session_generation) {
   g_state.sender.advanceLifecycleGeneration(static_cast<uint64_t>(session_generation));
   std::lock_guard<std::mutex> lock(g_state.mediaMutex);
@@ -1081,7 +1081,7 @@ Java_dev_openstream_app_stream_SrtNativeBridge_disconnect(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_dev_openstream_app_stream_SrtNativeBridge_sendAudio(
+Java_com_synclab_airlens_stream_SrtNativeBridge_sendAudio(
     JNIEnv *env,
     jobject,
     jbyteArray data,

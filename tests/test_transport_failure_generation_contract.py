@@ -2,9 +2,9 @@ from pathlib import Path
 
 
 SRT_CLIENT = Path(
-    "android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt"
+    "android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt"
 )
-MAIN_ACTIVITY = Path("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+MAIN_ACTIVITY = Path("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
 
 
 def _block_after(source: str, marker: str) -> str:

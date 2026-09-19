@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-SOURCE = Path("android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt")
+SOURCE = Path("android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt")
 
 
 def _block_after(text: str, marker: str) -> str:

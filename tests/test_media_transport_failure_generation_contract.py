@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-SOURCE = Path("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+SOURCE = Path("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
 
 
 def _block_after(text: str, marker: str) -> str:

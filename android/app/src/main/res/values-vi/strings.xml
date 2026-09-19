@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OpenStream</string>
+    <string name="app_name">AirLens</string>
 
     <!-- Camera controls -->
     <string name="lens_back_wide">1×</string>
@@ -228,5 +228,5 @@
     <string name="st_profile_name_invalid">Tên phải từ 1–40 ký tự.</string>
 
     <!-- Footer -->
-    <string name="st_version_footer">OpenStream v%1$s (%2$s) · Giới thiệu</string>
+    <string name="st_version_footer">AirLens v%1$s (%2$s) · Giới thiệu</string>
 </resources>

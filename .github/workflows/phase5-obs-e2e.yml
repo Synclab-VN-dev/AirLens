@@ -313,7 +313,7 @@ jobs:
 
       - name: Stop test app
         if: always()
-        run: adb -s '${{ inputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+        run: adb -s '${{ inputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Upload Phase 5 manual acceptance evidence
         if: always()

@@ -160,15 +160,15 @@ def test_android_and_obs_release_artifacts_stay_atomic() -> None:
     assert "git log -1 --format=%ct" in release_workflow
     assert "openstream-android-update.json" not in android_workflow
     assert "openstream-android-update.json" not in release_workflow
-    assert not (ROOT / "android/app/src/main/java/dev/openstream/app/update/AppUpdater.kt").exists()
+    assert not (ROOT / "android/app/src/main/java/com/synclab/airlens/update/AppUpdater.kt").exists()
     assert "/releases/latest/download/" in read("README.md")
     assert "Android APK and OBS artifacts" in release_docs
 
 
 def test_android_update_surface_is_removed() -> None:
     manifest = read("android/app/src/main/AndroidManifest.xml")
-    main_activity = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
-    settings_activity = read("android/app/src/main/java/dev/openstream/app/SettingsActivity.kt")
+    main_activity = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
+    settings_activity = read("android/app/src/main/java/com/synclab/airlens/SettingsActivity.kt")
     settings_layout = read("android/app/src/main/res/layout/activity_settings.xml")
 
     assert "REQUEST_INSTALL_PACKAGES" not in manifest

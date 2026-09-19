@@ -161,23 +161,23 @@ jobs:
           set -euo pipefail
           serial='${{ steps.topology.outputs.adb_serial }}'
           echo "Trạng thái package trước khi reset:"
-          adb -s "$serial" shell pm path dev.openstream.app || true
-          adb -s "$serial" shell pm path dev.openstream.app.test || true
+          adb -s "$serial" shell pm path com.synclab.airlens || true
+          adb -s "$serial" shell pm path com.synclab.airlens.test || true
 
-          adb -s "$serial" shell am force-stop dev.openstream.app || true
-          adb -s "$serial" shell am force-stop dev.openstream.app.test || true
+          adb -s "$serial" shell am force-stop com.synclab.airlens || true
+          adb -s "$serial" shell am force-stop com.synclab.airlens.test || true
 
           # Device lab phải bắt đầu từ trạng thái sạch để tránh xung đột chữ ký
           # hoặc version từ APK OpenStream đã từng được cài thủ công trước đó.
-          adb -s "$serial" uninstall dev.openstream.app.test || true
-          adb -s "$serial" uninstall dev.openstream.app || true
+          adb -s "$serial" uninstall com.synclab.airlens.test || true
+          adb -s "$serial" uninstall com.synclab.airlens || true
 
-          if adb -s "$serial" shell pm path dev.openstream.app | grep -q '^package:'; then
-            echo "Không thể gỡ dev.openstream.app khỏi T1; dừng để tránh nghiệm thu trên APK cũ." >&2
+          if adb -s "$serial" shell pm path com.synclab.airlens | grep -q '^package:'; then
+            echo "Không thể gỡ com.synclab.airlens khỏi T1; dừng để tránh nghiệm thu trên APK cũ." >&2
             exit 1
           fi
-          if adb -s "$serial" shell pm path dev.openstream.app.test | grep -q '^package:'; then
-            echo "Không thể gỡ dev.openstream.app.test khỏi T1; dừng để tránh instrumentation cũ." >&2
+          if adb -s "$serial" shell pm path com.synclab.airlens.test | grep -q '^package:'; then
+            echo "Không thể gỡ com.synclab.airlens.test khỏi T1; dừng để tránh instrumentation cũ." >&2
             exit 1
           fi
 
@@ -199,7 +199,7 @@ jobs:
       - name: Stop test app
         if: always()
         run: |
-          adb -s '${{ steps.topology.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+          adb -s '${{ steps.topology.outputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Upload Phase 3 device evidence
         if: always()

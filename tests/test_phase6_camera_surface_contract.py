@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAMERA = ROOT / "android/app/src/main/java/dev/openstream/app/camera/Camera2Controller.kt"
+CAMERA = ROOT / "android/app/src/main/java/com/synclab/airlens/camera/Camera2Controller.kt"
 
 
 def test_streaming_can_continue_without_preview_surface() -> None:

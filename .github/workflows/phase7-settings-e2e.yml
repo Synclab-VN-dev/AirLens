@@ -119,8 +119,8 @@ jobs:
         shell: bash
         run: |
           serial='${{ steps.device.outputs.adb_serial }}'
-          adb -s "$serial" uninstall dev.openstream.app.test || true
-          adb -s "$serial" uninstall dev.openstream.app || true
+          adb -s "$serial" uninstall com.synclab.airlens.test || true
+          adb -s "$serial" uninstall com.synclab.airlens || true
 
       - name: Install app and instrumentation APKs
         shell: bash
@@ -129,8 +129,8 @@ jobs:
           serial='${{ steps.device.outputs.adb_serial }}'
           adb -s "$serial" install -t dist/openstream-android.apk
           adb -s "$serial" install -t dist/openstream-android-test.apk
-          adb -s "$serial" shell pm grant dev.openstream.app android.permission.CAMERA
-          adb -s "$serial" shell pm grant dev.openstream.app android.permission.RECORD_AUDIO
+          adb -s "$serial" shell pm grant com.synclab.airlens android.permission.CAMERA
+          adb -s "$serial" shell pm grant com.synclab.airlens android.permission.RECORD_AUDIO
 
       - name: Run Phase 7 settings instrumentation
         shell: bash
@@ -140,8 +140,8 @@ jobs:
           mkdir -p build/phase7-settings-e2e
           set +e
           adb -s "$serial" shell am instrument -w -r \
-            -e class dev.openstream.app.Phase7SettingsE2eTest \
-            dev.openstream.app.test/androidx.test.runner.AndroidJUnitRunner \
+            -e class com.synclab.airlens.Phase7SettingsE2eTest \
+            com.synclab.airlens.test/androidx.test.runner.AndroidJUnitRunner \
             | tee build/phase7-settings-e2e/instrumentation.txt
           status=${PIPESTATUS[0]}
           set -e
@@ -165,7 +165,7 @@ jobs:
 
       - name: Stop test app
         if: always()
-        run: adb -s '${{ steps.device.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+        run: adb -s '${{ steps.device.outputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Upload Phase 7 settings evidence
         if: always()
@@ -290,7 +290,7 @@ jobs:
 
       - name: Stop test app
         if: always()
-        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop dev.openstream.app || true
+        run: adb -s '${{ steps.lab.outputs.adb_serial }}' shell am force-stop com.synclab.airlens || true
 
       - name: Upload P7 manual-unicast evidence
         if: always()

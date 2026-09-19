@@ -9,7 +9,7 @@ def read(path: str) -> str:
 
 
 def test_reservation_expires_if_media_never_connects() -> None:
-    source = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+    source = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
 
     reserve_start = source.index("private fun reserveForSource")
     release_start = source.index("private fun releaseForSource", reserve_start)
@@ -38,7 +38,7 @@ def test_reservation_expires_if_media_never_connects() -> None:
 
 
 def test_reservation_renewal_invalidates_an_already_started_expiry() -> None:
-    source = read("android/app/src/main/java/dev/openstream/app/MainActivity.kt")
+    source = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
 
     reserve_start = source.index("private fun reserveForSource")
     release_start = source.index("private fun releaseForSource", reserve_start)

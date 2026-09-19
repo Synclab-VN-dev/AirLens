@@ -87,7 +87,7 @@ jobs:
           test -f "$apk"
           "$build_tools/apksigner" verify --verbose "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee release-badging.txt
-          grep -q "package: name='dev.openstream.app'" release-badging.txt
+          grep -q "package: name='com.synclab.airlens'" release-badging.txt
           if grep -q "application-debuggable" release-badging.txt; then
             echo "::error::Release candidate must not be debuggable"
             exit 1

@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 SOURCE = Path(
-    "android/app/src/main/java/dev/openstream/app/encoder/MediaCodecVideoEncoder.kt"
+    "android/app/src/main/java/com/synclab/airlens/encoder/MediaCodecVideoEncoder.kt"
 ).read_text(encoding="utf-8")
 
 

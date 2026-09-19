@@ -27,10 +27,10 @@ from typing import Any
 
 import phase3_device_e2e as p3
 
-APP_ID = "dev.openstream.app"
-TEST_PACKAGE = "dev.openstream.app.test"
+APP_ID = "com.synclab.airlens"
+TEST_PACKAGE = "com.synclab.airlens.test"
 RUNNER = "androidx.test.runner.AndroidJUnitRunner"
-TEST_CLASS = "dev.openstream.app.Phase6SoakE2eTest#soak4k30WithMicrophone"
+TEST_CLASS = "com.synclab.airlens.Phase6SoakE2eTest#soak4k30WithMicrophone"
 PREFLIGHT_FILE = "phase6-soak-preflight.json"
 
 
@@ -229,7 +229,7 @@ def validate(
         "Audio capture/encoder failed",
         "No hardware surface encoder",
         "FATAL EXCEPTION",
-        "ANR in dev.openstream.app",
+        "ANR in com.synclab.airlens",
     ]
 
     requested_bitrate = int(preflight.get("streamBitrateMbps", 0))

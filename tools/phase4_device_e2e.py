@@ -24,10 +24,10 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-APP_ID = "dev.openstream.app"
-TEST_PACKAGE = "dev.openstream.app.test"
+APP_ID = "com.synclab.airlens"
+TEST_PACKAGE = "com.synclab.airlens.test"
 RUNNER = "androidx.test.runner.AndroidJUnitRunner"
-TEST_CLASS = "dev.openstream.app.Phase4DeviceE2eTest#validate4k60CapabilityAndStreamWhenSupported"
+TEST_CLASS = "com.synclab.airlens.Phase4DeviceE2eTest#validate4k60CapabilityAndStreamWhenSupported"
 PREFLIGHT_FILE = "phase4-device-e2e-preflight.json"
 
 

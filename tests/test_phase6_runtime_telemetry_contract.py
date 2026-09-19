@@ -2,9 +2,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SRT = ROOT / "android/app/src/main/java/dev/openstream/app/stream/SrtStreamClient.kt"
-TELEMETRY = ROOT / "android/app/src/main/java/dev/openstream/app/telemetry/TelemetrySampler.kt"
-RATE = ROOT / "android/app/src/main/java/dev/openstream/app/telemetry/SendRateMeter.kt"
+SRT = ROOT / "android/app/src/main/java/com/synclab/airlens/stream/SrtStreamClient.kt"
+TELEMETRY = ROOT / "android/app/src/main/java/com/synclab/airlens/telemetry/TelemetrySampler.kt"
+RATE = ROOT / "android/app/src/main/java/com/synclab/airlens/telemetry/SendRateMeter.kt"
 
 
 def test_transport_stats_keep_video_audio_and_lifetime_counters_separate() -> None:

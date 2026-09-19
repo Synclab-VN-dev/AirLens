@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 SOURCE = Path(
-    "android/app/src/main/java/dev/openstream/app/camera/Camera2Controller.kt"
+    "android/app/src/main/java/com/synclab/airlens/camera/Camera2Controller.kt"
 ).read_text()
 
 
