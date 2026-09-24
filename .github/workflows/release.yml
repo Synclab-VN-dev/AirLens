@@ -1,11 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - issue-23-synclab-release-signing
-    paths:
-      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       bump:
