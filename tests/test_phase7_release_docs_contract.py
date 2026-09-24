@@ -13,15 +13,19 @@ def test_phase7_release_candidate_is_non_production_and_builds_release_variant()
     assert 'packages: ""' in workflow
 
 
-def test_public_release_remains_strictly_signed_and_avoids_legacy_sdk_tools_package():
+def test_public_release_uses_synclab_public_api_signing():
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
-    assert 'packages: ""' in workflow
-    assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" in workflow
-    assert "OPENSTREAM_RELEASE_STORE_PASSWORD" in workflow
-    assert "OPENSTREAM_RELEASE_KEY_ALIAS" in workflow
-    assert "OPENSTREAM_RELEASE_KEY_PASSWORD" in workflow
-    assert ":app:assembleRelease" in workflow
-    assert "gh release create" in workflow
+    config = (ROOT / "synclab-release.json").read_text(encoding="utf-8")
+    app_gradle = (ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
+
+    assert "synclab-CICD-framework/.github/workflows/android-release.yml" in workflow
+    assert "signingMode: public-api" in workflow
+    assert "signingUrl: https://sign.synclab.com.vn" in workflow
+    assert "secrets: inherit" in workflow
+    assert '"profile": "prod"' in config
+    assert '"tlsVerify": true' in config
+    assert "OPENSTREAM_RELEASE_KEYSTORE" not in workflow
+    assert "OPENSTREAM_RELEASE_KEYSTORE" not in app_gradle
 
 
 def test_phase7_user_guide_keeps_primary_flow_cli_free_and_names_release_assets():
