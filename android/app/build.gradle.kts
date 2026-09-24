@@ -7,12 +7,12 @@ plugins {
 
 val synclabVersionFile = rootProject.file("synclab-version.gradle")
 val synclabVersionText = synclabVersionFile.readText()
-val synclabVersionName = Regex("""(?m)^\\s*versionName\\s+"([^"]+)"\\s*$""")
+val synclabVersionName = Regex("""(?m)^\s*versionName\s+"([^"]+)"\s*$""")
     .find(synclabVersionText)
     ?.groupValues
     ?.get(1)
     ?: error("Missing versionName in ${synclabVersionFile.path}")
-val synclabVersionCode = Regex("""(?m)^\\s*versionCode\\s+(\\d+)\\s*$""")
+val synclabVersionCode = Regex("""(?m)^\s*versionCode\s+(\d+)\s*$""")
     .find(synclabVersionText)
     ?.groupValues
     ?.get(1)
