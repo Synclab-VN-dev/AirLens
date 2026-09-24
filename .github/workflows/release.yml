@@ -1,234 +1,38 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: Release tag, for example v1.0.1
+      bump:
+        description: Version component to bump
         required: true
+        default: d
+        type: choice
+        options:
+          - d
+          - c
+          - b
+          - a
+      versionName:
+        description: Optional explicit a.b.c.d version
+        required: false
+        default: ""
         type: string
-
-permissions:
-  contents: read
+      dryRun:
+        description: Build, sign and verify without publishing GitHub Release
+        required: true
+        default: true
+        type: boolean
 
 jobs:
-  android:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # Legacy package `tools` is no longer published by current sdkmanager.
-          # Install only the exact packages required by the release build below.
-          packages: ""
-
-      - name: Install Android build packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
-
-      - name: Run repository tests and Android lint
-        run: |
-          python -m pip install --disable-pip-version-check pytest
-          python -m pytest -q
-          cd android
-          chmod +x ./gradlew
-          ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug
-
-      - name: Compute Android version metadata
-        id: version
-        run: |
-          echo "code=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
-
-      - name: Require Android signing inputs
-        env:
-          OPENSTREAM_RELEASE_KEYSTORE_BASE64: ${{ secrets.OPENSTREAM_RELEASE_KEYSTORE_BASE64 }}
-          OPENSTREAM_RELEASE_STORE_PASSWORD: ${{ secrets.OPENSTREAM_RELEASE_STORE_PASSWORD }}
-          OPENSTREAM_RELEASE_KEY_ALIAS: ${{ secrets.OPENSTREAM_RELEASE_KEY_ALIAS }}
-          OPENSTREAM_RELEASE_KEY_PASSWORD: ${{ secrets.OPENSTREAM_RELEASE_KEY_PASSWORD }}
-        run: |
-          test -n "$OPENSTREAM_RELEASE_KEYSTORE_BASE64" &&
-          test -n "$OPENSTREAM_RELEASE_STORE_PASSWORD" &&
-          test -n "$OPENSTREAM_RELEASE_KEY_ALIAS" &&
-          test -n "$OPENSTREAM_RELEASE_KEY_PASSWORD" || {
-            echo "::error::Public releases require all Android signing secrets."
-            exit 1
-          }
-
-      - name: Decode Android signing key
-        env:
-          OPENSTREAM_RELEASE_KEYSTORE_BASE64: ${{ secrets.OPENSTREAM_RELEASE_KEYSTORE_BASE64 }}
-        run: |
-          printf '%s' "$OPENSTREAM_RELEASE_KEYSTORE_BASE64" | base64 --decode > android/app/openstream-release.keystore
-
-      - name: Build signed release APK with native SRT enabled
-        working-directory: android
-        env:
-          OPENSTREAM_RELEASE_KEYSTORE: ${{ github.workspace }}/android/app/openstream-release.keystore
-          OPENSTREAM_RELEASE_STORE_PASSWORD: ${{ secrets.OPENSTREAM_RELEASE_STORE_PASSWORD }}
-          OPENSTREAM_RELEASE_KEY_ALIAS: ${{ secrets.OPENSTREAM_RELEASE_KEY_ALIAS }}
-          OPENSTREAM_RELEASE_KEY_PASSWORD: ${{ secrets.OPENSTREAM_RELEASE_KEY_PASSWORD }}
-          OPENSTREAM_VERSION_NAME: ${{ inputs.tag || github.ref_name }}
-          OPENSTREAM_VERSION_CODE: ${{ steps.version.outputs.code }}
-        run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon :app:assembleRelease
-
-      - name: Normalize Android APK artifact
-        run: |
-          mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk dist/openstream-android.apk
-          (cd dist && sha256sum openstream-android.apk > openstream-android.apk.sha256)
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openstream-android-apk
-          path: |
-            dist/openstream-android.apk
-            dist/openstream-android.apk.sha256
-          if-no-files-found: error
-
-  obs-plugin:
-    name: Build OBS plugin
-    runs-on: windows-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Install OBS Studio 32.2.1
-        shell: powershell
-        run: |
-          $url = "https://github.com/obsproject/obs-studio/releases/download/32.2.1/OBS-Studio-32.2.1-Windows-x64.zip"
-          $archive = "$env:RUNNER_TEMP\obs-studio.zip"
-          $destination = "$env:RUNNER_TEMP\obs-studio"
-          & curl.exe -L --fail --retry 3 -o $archive $url
-          if ($LASTEXITCODE -ne 0) { throw "OBS Studio download failed" }
-          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          $expected = "db64a2934f8261f85b1410b84be011207a0afda5400d008289f1f1e211bcc7de"
-          if ($actual -ne $expected) { throw "OBS Studio checksum mismatch" }
-          Expand-Archive -Path $archive -DestinationPath $destination
-          "OPENSTREAM_OBS_INSTALL=$destination" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Install matching Qt development files
-        shell: powershell
-        run: |
-          python -m pip install --disable-pip-version-check aqtinstall
-          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:\Qt
-          "OPENSTREAM_QT_ROOT=C:\Qt\6.8.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Build plugin package
-        shell: cmd
-        run: |
-          set OPENSTREAM_SKIP_INSTALL=1
-          set OPENSTREAM_PLUGIN_PACKAGE_DIR=%CD%\artifacts
-          call build_plugin.bat
-
-      - name: Verify OBS 32 FFmpeg ABI dependencies and package layout
-        shell: powershell
-        run: |
-          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
-          if (!$dumpbin) { throw "dumpbin.exe was not found" }
-          $deps = (& $dumpbin.FullName /dependents "$PWD\obs-plugin\build\openstream-obs.dll") -join "`n"
-          'avformat-62.dll','avcodec-62.dll','avutil-60.dll','swscale-9.dll' | ForEach-Object { if ($deps -notmatch [regex]::Escape($_)) { throw "Missing expected dependency $_" } }
-          Expand-Archive artifacts\openstream-obs-windows-x64.zip "$env:RUNNER_TEMP\openstream-zip"
-          if (!(Test-Path "$env:RUNNER_TEMP\openstream-zip\openstream-obs.dll")) { throw 'ZIP plugin DLL missing' }
-          & tools\installer\Test-OpenStreamPackage.ps1 -ZipPath "$PWD\artifacts\openstream-obs-windows-x64.zip"
-
-      - name: Install Inno Setup
-        shell: powershell
-        run: choco install innosetup -y --no-progress
-
-      - name: Build plugin installer
-        shell: powershell
-        env:
-          OPENSTREAM_VERSION: ${{ inputs.tag || github.ref_name }}
-        run: |
-          if (-not $env:OPENSTREAM_VERSION) {
-            $env:OPENSTREAM_VERSION = "manual"
-          }
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc "tools\installer\openstream-obs-plugin.iss" `
-            "/DPluginDll=$PWD\obs-plugin\build\openstream-obs.dll" `
-            "/DOutputDir=$PWD\artifacts" `
-            "/DOutputBaseFilename=openstream-obs-plugin-installer-windows-x64" `
-            "/DOpenStreamVersion=$env:OPENSTREAM_VERSION"
-
-      - name: Smoke-test executable installer migration
-        shell: powershell
-        run: |
-          & tools\installer\Test-OpenStreamInnoInstaller.ps1 `
-            -InstallerPath "$PWD\artifacts\openstream-obs-plugin-installer-windows-x64.exe"
-
-      - name: Upload plugin artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openstream-obs-windows-x64
-          path: |
-            artifacts/openstream-obs-windows-x64.zip
-            artifacts/openstream-obs-plugin-installer-windows-x64.exe
-          if-no-files-found: error
-
-  publish:
-    name: Publish GitHub release
-    runs-on: ubuntu-latest
-    needs: [android, obs-plugin]
-    permissions:
-      contents: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Verify release assets
-        run: |
-          test -f dist/openstream-android.apk
-          test -f dist/openstream-android.apk.sha256
-          test -f dist/openstream-obs-plugin-installer-windows-x64.exe
-          test -f dist/openstream-obs-windows-x64.zip
-
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          TAG_NAME="${INPUT_TAG:-${GITHUB_REF_NAME}}"
-          gh release create "$TAG_NAME" \
-            dist/openstream-android.apk \
-            dist/openstream-android.apk.sha256 \
-            dist/openstream-obs-plugin-installer-windows-x64.exe \
-            dist/openstream-obs-windows-x64.zip \
-            --target "$GITHUB_SHA" \
-            --title "OpenStream ${TAG_NAME}" \
-            --notes-file docs/release-notes-template.md
+  android-release:
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release.yml@issue-6-public-api-signing
+    with:
+      configFile: synclab-release.json
+      bump: ${{ inputs.bump }}
+      versionName: ${{ inputs.versionName }}
+      dryRun: ${{ inputs.dryRun }}
+      frameworkRef: issue-6-public-api-signing
+      signingMode: public-api
+      signingUrl: https://sign.synclab.com.vn
+    secrets: inherit
