@@ -131,20 +131,19 @@ def test_pairing_url_acceptance_contract_clamps_network_values() -> None:
     assert parse_pairing_url("https://example.test") is None
 
 
-def test_release_workflow_requires_signed_android_apk_and_digest() -> None:
+def test_release_workflow_delegates_signed_android_release_to_synclab() -> None:
     release_workflow = read(".github/workflows/release.yml")
+    config = read("synclab-release.json")
 
-    assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" in release_workflow
-    assert "OPENSTREAM_RELEASE_STORE_PASSWORD" in release_workflow
-    assert "OPENSTREAM_RELEASE_KEY_ALIAS" in release_workflow
-    assert "OPENSTREAM_RELEASE_KEY_PASSWORD" in release_workflow
-    assert ":app:assembleRelease" in release_workflow
-    assert ":app:assembleDebug" not in release_workflow
-    assert "debug-signed-beta" not in release_workflow
-    assert "Public releases require all Android signing secrets" in release_workflow
-    assert "dist/openstream-android.apk" in release_workflow
-    assert "dist/openstream-android.apk.sha256" in release_workflow
-    assert "sha256sum openstream-android.apk" in release_workflow
+    assert "synclab-CICD-framework/.github/workflows/android-release.yml" in release_workflow
+    assert "signingMode: public-api" in release_workflow
+    assert "signingUrl: https://sign.synclab.com.vn" in release_workflow
+    assert "dryRun:" in release_workflow
+    assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" not in release_workflow
+    assert '"targets": ["release"]' in config
+    assert '"profile": "prod"' in config
+    assert '"expectedSignerDn": "CN=Synclab Android Upload' in config
+    assert '"assetName": "{project}-release-{versionName}.apk"' in config
 
 
 def test_android_and_obs_release_artifacts_stay_atomic() -> None:
@@ -157,7 +156,7 @@ def test_android_and_obs_release_artifacts_stay_atomic() -> None:
     assert ":app:lintDebug" in android_workflow
     assert "openstream-android.apk.sha256" in android_workflow
     assert "git log -1 --format=%ct" in android_workflow
-    assert "git log -1 --format=%ct" in release_workflow
+    assert "synclab-version.gradle" in read("synclab-release.json")
     assert "openstream-android-update.json" not in android_workflow
     assert "openstream-android-update.json" not in release_workflow
     assert not (ROOT / "android/app/src/main/java/com/synclab/airlens/update/AppUpdater.kt").exists()
