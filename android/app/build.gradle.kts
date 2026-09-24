@@ -5,23 +5,26 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val releaseKeystorePath = providers.environmentVariable("OPENSTREAM_RELEASE_KEYSTORE").orNull
-val releaseStorePassword = providers.environmentVariable("OPENSTREAM_RELEASE_STORE_PASSWORD").orNull
-val releaseKeyAlias = providers.environmentVariable("OPENSTREAM_RELEASE_KEY_ALIAS").orNull
-val releaseKeyPassword = providers.environmentVariable("OPENSTREAM_RELEASE_KEY_PASSWORD").orNull
-val hasReleaseSigning = listOf(
-    releaseKeystorePath,
-    releaseStorePassword,
-    releaseKeyAlias,
-    releaseKeyPassword,
-).all { !it.isNullOrBlank() }
+val synclabVersionFile = rootProject.file("synclab-version.gradle")
+val synclabVersionText = synclabVersionFile.readText()
+val synclabVersionName = Regex("""(?m)^\\s*versionName\\s+"([^"]+)"\\s*$""")
+    .find(synclabVersionText)
+    ?.groupValues
+    ?.get(1)
+    ?: error("Missing versionName in ${synclabVersionFile.path}")
+val synclabVersionCode = Regex("""(?m)^\\s*versionCode\\s+(\\d+)\\s*$""")
+    .find(synclabVersionText)
+    ?.groupValues
+    ?.get(1)
+    ?: error("Missing versionCode in ${synclabVersionFile.path}")
+
 val openStreamVersionName = providers.gradleProperty("openstream.versionName")
     .orElse(providers.environmentVariable("OPENSTREAM_VERSION_NAME"))
-    .orElse("1.0.1")
+    .orElse(synclabVersionName)
     .map { it.removePrefix("v") }
 val openStreamVersionCode = providers.gradleProperty("openstream.versionCode")
     .orElse(providers.environmentVariable("OPENSTREAM_VERSION_CODE"))
-    .orElse("2")
+    .orElse(synclabVersionCode)
     .map { it.toInt() }
 
 android {
@@ -55,24 +58,10 @@ android {
         }
     }
 
-    signingConfigs {
-        if (hasReleaseSigning) {
-            create("release") {
-                storeFile = file(releaseKeystorePath!!)
-                storePassword = releaseStorePassword!!
-                keyAlias = releaseKeyAlias!!
-                keyPassword = releaseKeyPassword!!
-            }
-        }
-    }
-
     buildTypes {
         release {
             isDebuggable = false
             isMinifyEnabled = false
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
         }
     }
 
@@ -85,21 +74,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
-gradle.taskGraph.whenReady {
-    val releaseTaskRequested = allTasks.any { task ->
-        task.path == ":app:assembleRelease" ||
-            task.path == ":app:bundleRelease" ||
-            task.path == ":app:packageRelease"
-    }
-    if (releaseTaskRequested && !hasReleaseSigning) {
-        throw org.gradle.api.GradleException(
-            "Release builds require OPENSTREAM_RELEASE_KEYSTORE, " +
-                "OPENSTREAM_RELEASE_STORE_PASSWORD, OPENSTREAM_RELEASE_KEY_ALIAS, " +
-                "and OPENSTREAM_RELEASE_KEY_PASSWORD.",
-        )
     }
 }
 
