@@ -1,4 +1,5 @@
 name: Issue 23 unsigned release smoke
+# rerun after Gradle version parser fix
 
 on:
   push:
