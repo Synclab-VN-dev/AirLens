@@ -1,0 +1,87 @@
+name: Issue 5 Framework AAB Build Probe
+
+on:
+  push:
+    branches:
+      - issue-5-google-play-aab
+    paths:
+      - .github/workflows/issue5-framework-aab-build-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out AirLens
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ""
+
+      - name: Install Android build packages
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1" "ndk;28.0.13004108"
+
+      - name: Check out AAB-capable framework
+        uses: actions/checkout@v4
+        with:
+          repository: Synclab-VN-dev/synclab-CICD-framework
+          ref: issue-5-aab-artifacts
+          path: .synclab-cicd-framework
+
+      - name: Prepare release plan
+        uses: ./.synclab-cicd-framework
+        with:
+          command: prepare
+          config-file: synclab-release.json
+          bump: d
+          dry-run: true
+
+      - name: Build staged Android artifacts
+        uses: ./.synclab-cicd-framework
+        with:
+          command: build
+          plan-file: synclab-release-plan/release-plan.json
+          output-dir: synclab-unsigned-artifacts
+
+      - name: Verify staged APK and AAB
+        run: |
+          set -euo pipefail
+          test -s synclab-unsigned-artifacts/release.apk
+          test -s synclab-unsigned-artifacts/play.aab
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          plan = json.loads(Path("synclab-release-plan/release-plan.json").read_text())
+          assert plan["versionName"] == "18.0.0.1"
+          assert plan["versionCode"] == 1800000001
+          targets = {item["name"]: item for item in plan["targets"]}
+          assert targets["release"]["artifactType"] == "apk"
+          assert targets["play"]["artifactType"] == "aab"
+          print("Framework staged build produced release.apk + play.aab for 18.0.0.1")
+          PY
+
+      - name: Upload probe artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue5-framework-aab-build-probe
+          path: |
+            synclab-release-plan/release-plan.json
+            synclab-unsigned-artifacts/release.apk
+            synclab-unsigned-artifacts/play.aab
+          if-no-files-found: error
