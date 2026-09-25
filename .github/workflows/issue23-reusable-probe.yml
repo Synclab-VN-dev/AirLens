@@ -10,7 +10,9 @@ on:
 jobs:
   probe:
     permissions:
-      contents: read
-    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-sign-runner-probe.yml@issue-6-public-api-signing
+      contents: write
+      actions: read
+      packages: read
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-android-graph-probe.yml@issue-6-public-api-signing
     with:
       signingMode: public-api
