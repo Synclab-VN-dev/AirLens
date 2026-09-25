@@ -1,5 +1,4 @@
 name: Release
-# E2E production rerun after stage isolation
 
 on:
   workflow_dispatch:
