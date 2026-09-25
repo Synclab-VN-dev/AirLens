@@ -13,7 +13,13 @@ jobs:
       contents: write
       actions: read
       packages: read
-    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-verify-block-probe.yml@issue-6-public-api-signing
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release-v2.yml@issue-6-public-api-signing
     with:
+      configFile: synclab-release.json
+      bump: d
+      versionName: ""
       dryRun: true
       frameworkRef: issue-6-public-api-signing
+      signingMode: public-api
+      signingUrl: https://sign.synclab.com.vn
+    secrets: inherit
