@@ -30,13 +30,13 @@ jobs:
       contents: write
       actions: read
       packages: read
-    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release.yml@issue-6-public-api-signing
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release.yml@issue-5-aab-artifacts
     with:
       configFile: synclab-release.json
       bump: ${{ inputs.bump }}
       versionName: ${{ inputs.versionName }}
       dryRun: ${{ inputs.dryRun }}
-      frameworkRef: issue-6-public-api-signing
+      frameworkRef: issue-5-aab-artifacts
       signingMode: public-api
       signingUrl: https://sign.synclab.com.vn
     secrets: inherit
