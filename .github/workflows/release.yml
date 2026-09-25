@@ -1,5 +1,5 @@
 name: Release
-# E2E rerun after public framework secret contract fix
+# E2E production rerun after Android SDK + public framework fixes
 
 on:
   push:
