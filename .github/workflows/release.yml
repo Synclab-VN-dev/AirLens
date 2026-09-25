@@ -1,4 +1,5 @@
 name: Release
+# E2E rerun after public framework secret contract fix
 
 on:
   push:
