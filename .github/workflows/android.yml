@@ -39,7 +39,7 @@ jobs:
           packages: ""
 
       - name: Install Android build packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1" "ndk;28.0.13004108"
 
       - name: Compute Android version metadata
         id: version
@@ -58,15 +58,92 @@ jobs:
           OPENSTREAM_VERSION_CODE: ${{ steps.version.outputs.code }}
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:bundleRelease
+
+      - name: Verify Play AAB metadata and 16 KB compatibility
+        env:
+          EXPECTED_VERSION_NAME: 1.0.1
+          EXPECTED_VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          set -euo pipefail
+
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+
+          BUNDLETOOL_VERSION=1.18.3
+          BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool-all-$BUNDLETOOL_VERSION.jar"
+          curl -fsSL             "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar"             -o "$BUNDLETOOL_JAR"
+
+          dump_manifest_value() {
+            java -jar "$BUNDLETOOL_JAR" dump manifest               --bundle="$AAB"               --xpath="$1" | tr -d '\r\n"'
+          }
+
+          PACKAGE_NAME="$(dump_manifest_value '/manifest/@package')"
+          VERSION_NAME="$(dump_manifest_value '/manifest/@android:versionName')"
+          VERSION_CODE="$(dump_manifest_value '/manifest/@android:versionCode')"
+          TARGET_SDK="$(dump_manifest_value '/manifest/uses-sdk/@android:targetSdkVersion')"
+
+          test "$PACKAGE_NAME" = "com.synclab.airlens"
+          test "$VERSION_NAME" = "$EXPECTED_VERSION_NAME"
+          test "$VERSION_CODE" = "$EXPECTED_VERSION_CODE"
+          test "$TARGET_SDK" = "36"
+
+          APKS="$RUNNER_TEMP/airlens.apks"
+          java -jar "$BUNDLETOOL_JAR" build-apks             --bundle="$AAB"             --output="$APKS"             --mode=universal             --overwrite
+
+          UNIVERSAL_APK="$RUNNER_TEMP/universal.apk"
+          unzip -p "$APKS" universal.apk > "$UNIVERSAL_APK"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$UNIVERSAL_APK"
+
+          NATIVE_DIR="$RUNNER_TEMP/airlens-native"
+          mkdir -p "$NATIVE_DIR"
+          unzip -q -o "$UNIVERSAL_APK" 'lib/*/*.so' -d "$NATIVE_DIR"
+
+          READELF="$ANDROID_HOME/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          python - "$READELF" "$NATIVE_DIR" <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+
+          readelf = sys.argv[1]
+          root = pathlib.Path(sys.argv[2])
+          libs = sorted(root.rglob("*.so"))
+          if not libs:
+              raise SystemExit("No native shared libraries found in universal APK")
+
+          failures = []
+          for lib in libs:
+              output = subprocess.check_output([readelf, "-lW", str(lib)], text=True)
+              aligns = []
+              for line in output.splitlines():
+                  parts = line.split()
+                  if parts and parts[0] == "LOAD":
+                      aligns.append(int(parts[-1], 0))
+              if not aligns:
+                  failures.append(f"{lib}: no LOAD segments")
+                  continue
+              bad = [align for align in aligns if align < 0x4000]
+              if bad:
+                  failures.append(
+                      f"{lib}: LOAD alignment below 16 KB: "
+                      + ", ".join(hex(value) for value in bad)
+                  )
+
+          if failures:
+              raise SystemExit("\n".join(failures))
+
+          print(f"Verified 16 KB ELF alignment for {len(libs)} shared libraries")
+          PY
 
       - name: Normalize Android build assets
         run: |
           mkdir -p dist
           cp android/app/build/outputs/apk/debug/app-debug.apk dist/openstream-android.apk
           cp android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk dist/openstream-android-test.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab dist/airlens-release.aab
           (cd dist && sha256sum openstream-android.apk > openstream-android.apk.sha256)
           (cd dist && sha256sum openstream-android-test.apk > openstream-android-test.apk.sha256)
+          (cd dist && sha256sum airlens-release.aab > airlens-release.aab.sha256)
           printf 'debug-signed\n' > dist/android-signing.txt
 
       - name: Upload APKs
@@ -78,5 +155,7 @@ jobs:
             dist/openstream-android.apk.sha256
             dist/openstream-android-test.apk
             dist/openstream-android-test.apk.sha256
+            dist/airlens-release.aab
+            dist/airlens-release.aab.sha256
             dist/android-signing.txt
           if-no-files-found: error
