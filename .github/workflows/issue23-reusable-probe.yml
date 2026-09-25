@@ -1,5 +1,4 @@
 name: Issue 23 reusable workflow probe
-# rerun after Android SDK setup
 
 on:
   push:
@@ -14,7 +13,7 @@ jobs:
       contents: write
       actions: read
       packages: read
-    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-prepare-build-probe.yml@issue-6-public-api-signing
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-prepare-build-sign-probe.yml@issue-6-public-api-signing
     with:
       configFile: synclab-release.json
       bump: d
