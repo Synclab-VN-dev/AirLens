@@ -9,6 +9,10 @@ on:
 
 jobs:
   e2e:
+    permissions:
+      contents: write
+      actions: read
+      packages: read
     uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release.yml@issue-6-public-api-signing
     with:
       configFile: synclab-release.json
