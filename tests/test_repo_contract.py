@@ -296,21 +296,20 @@ def test_release_workflows_build_streaming_apk_and_plugin_package() -> None:
     assert "openstream-android-debug-apk" in android_workflow
     assert "python -m pytest -q" in android_workflow
     assert ":app:lintDebug" in android_workflow
-    assert ":app:assembleRelease" in release_workflow
-    assert ":app:assembleDebug" not in release_workflow
-    assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" in release_workflow
-    assert "OPENSTREAM_VERSION_NAME" in release_workflow
-    assert "OPENSTREAM_VERSION_CODE" in release_workflow
+    assert "synclab-CICD-framework/.github/workflows/android-release.yml" in release_workflow
+    assert "signingMode: public-api" in release_workflow
+    assert "signingUrl: https://sign.synclab.com.vn" in release_workflow
+    assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" not in release_workflow
+    assert '"buildCommand"' in read("synclab-release.json")
+    assert ":app:assembleRelease" in read("synclab-release.json")
     assert "OPENSTREAM_SKIP_INSTALL=1" in obs_workflow
     assert "OPENSTREAM_PLUGIN_PACKAGE_DIR" in obs_workflow
     assert "openstream-obs-windows-x64.zip" in obs_workflow
-    assert "gh release create" in release_workflow
-    assert "docs/release-notes-template.md" in release_workflow
-    assert "openstream-android.apk" in release_workflow
-    assert "openstream-android.apk.sha256" in release_workflow
-    assert "sha256sum openstream-android.apk" in release_workflow
-    assert "Public releases require all Android signing secrets" in release_workflow
-    assert "openstream-obs-windows-x64.zip" in release_workflow
+    config = read("synclab-release.json")
+    assert '"githubRelease"' in config
+    assert '"prerelease": false' in config
+    assert '"profile": "prod"' in config
+    assert '"expectedSignerDn": "CN=Synclab Android Upload' in config
     assert "never publishes a debug-signed fallback" in release_docs
     assert "Android Signing Secrets" in release_docs
     assert "OPENSTREAM_SKIP_INSTALL" in plugin_builder
@@ -329,21 +328,20 @@ def test_manual_obs_installer_replaces_known_plugin_copies() -> None:
     assert "OpenStream V8" in installer
 
 
-def test_release_build_fails_without_signing_and_keystores_are_ignored() -> None:
+def test_release_build_is_unsigned_before_synclab_signing_and_keystores_are_ignored() -> None:
     app_gradle = read("android/app/build.gradle.kts")
+    config = read("synclab-release.json")
+    version_source = read("android/synclab-version.gradle")
     gitignore = read(".gitignore")
 
-    assert "Release builds require OPENSTREAM_RELEASE_KEYSTORE" in app_gradle
+    assert "OPENSTREAM_RELEASE_KEYSTORE" not in app_gradle
+    assert "signingConfigs" not in app_gradle
+    assert "synclabVersionFile" in app_gradle
     assert "openstream.versionName" in app_gradle
     assert "openstream.versionCode" in app_gradle
-    assert '"1.0.1"' in app_gradle
-    version_code = re.search(
-        r"openStreamVersionCode.*?\.orElse\(\"(\d+)\"\)",
-        app_gradle,
-        re.DOTALL,
-    )
-    assert version_code is not None
-    assert int(version_code.group(1)) > 0
+    assert 'versionName "17.90.16.564"' in version_source
+    assert "versionCode 1790160564" in version_source
+    assert '"profile": "prod"' in config
     assert "*.keystore" in gitignore
     assert "*.jks" in gitignore
 
@@ -353,6 +351,6 @@ def test_legacy_android_and_restored_obs_metadata_are_explicit() -> None:
     cmake = read("obs-plugin/CMakeLists.txt")
     installer = read("tools/installer/openstream-obs-plugin.iss")
 
-    assert '"1.0.1"' in app_gradle
+    assert "synclabVersionFile" in app_gradle
     assert "project(openstream_obs_plugin VERSION 1.0.1" in cmake
     assert '#define OpenStreamVersion "1.0.1"' in installer

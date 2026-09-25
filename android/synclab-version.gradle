@@ -1,0 +1,8 @@
+// TECH DEBT: Temporary version source for Synclab CICD.
+// AirLens uses Kotlin DSL (build.gradle.kts), while the current framework version writer
+// rewrites Gradle version declarations using Groovy syntax. Keep this file until the
+// framework can preserve/update Kotlin DSL syntax directly, then move versionName/versionCode
+// back into android/app/build.gradle.kts and point synclab-release.json there.
+
+versionName "17.90.16.564"
+versionCode 1790160564

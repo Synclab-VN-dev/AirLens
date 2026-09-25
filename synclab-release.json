@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "airlens"
+  },
+  "version": {
+    "source": "gradle",
+    "file": "android/synclab-version.gradle",
+    "versionNameScheme": "quad",
+    "versionCodeFormula": "a*100000000+b*1000000+c*10000+d"
+  },
+  "signingService": {
+    "urlEnv": "SYNCLAB_SIGNING_URL",
+    "requiresTailscale": false,
+    "tlsVerify": true
+  },
+  "bundle": {
+    "name": "android_release",
+    "targets": ["release"]
+  },
+  "targets": {
+    "release": {
+      "buildCommand": [
+        "bash",
+        "-lc",
+        "sdkmanager \"platforms;android-35\" \"build-tools;35.0.0\" \"cmake;3.22.1\" \"ndk;27.0.12077973\" && chmod +x android/gradlew && ./android/gradlew -p android --no-daemon :app:assembleRelease"
+      ],
+      "artifactPattern": "android/app/build/outputs/apk/release/*.apk",
+      "signing": {
+        "enabled": true,
+        "profile": "prod",
+        "expectedSignerDn": "CN=Synclab Android Upload, OU=Synclab Signing, O=Synclab, L=Hanoi, ST=Hanoi, C=VN"
+      },
+      "assetName": "{project}-release-{versionName}.apk"
+    }
+  },
+  "githubRelease": {
+    "tagFormat": "v{versionName}",
+    "nameFormat": "{project} {versionName}",
+    "prerelease": false
+  }
+}
