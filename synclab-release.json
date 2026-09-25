@@ -16,14 +16,18 @@
   },
   "bundle": {
     "name": "android_release",
-    "targets": ["release"]
+    "targets": [
+      "release",
+      "play"
+    ]
   },
   "targets": {
     "release": {
+      "artifactType": "apk",
       "buildCommand": [
         "bash",
         "-lc",
-        "sdkmanager \"platforms;android-35\" \"build-tools;35.0.0\" \"cmake;3.22.1\" \"ndk;27.0.12077973\" && chmod +x android/gradlew && ./android/gradlew -p android --no-daemon :app:assembleRelease"
+        "sdkmanager \"platforms;android-36\" \"build-tools;35.0.0\" \"cmake;3.22.1\" \"ndk;28.0.13004108\" && chmod +x android/gradlew && ./android/gradlew -p android --no-daemon :app:assembleRelease"
       ],
       "artifactPattern": "android/app/build/outputs/apk/release/*.apk",
       "signing": {
@@ -32,6 +36,21 @@
         "expectedSignerDn": "CN=Synclab Android Upload, OU=Synclab Signing, O=Synclab, L=Hanoi, ST=Hanoi, C=VN"
       },
       "assetName": "{project}-release-{versionName}.apk"
+    },
+    "play": {
+      "artifactType": "aab",
+      "buildCommand": [
+        "bash",
+        "-lc",
+        "sdkmanager \"platforms;android-36\" \"build-tools;35.0.0\" \"cmake;3.22.1\" \"ndk;28.0.13004108\" && chmod +x android/gradlew && ./android/gradlew -p android --no-daemon :app:bundleRelease"
+      ],
+      "artifactPattern": "android/app/build/outputs/bundle/release/*.aab",
+      "signing": {
+        "enabled": true,
+        "profile": "prod",
+        "expectedSignerDn": "CN=Synclab Android Upload, OU=Synclab Signing, O=Synclab, L=Hanoi, ST=Hanoi, C=VN"
+      },
+      "assetName": "{project}-release-{versionName}.aab"
     }
   },
   "githubRelease": {
