@@ -1,0 +1,14 @@
+name: Issue 23 reusable workflow probe
+
+on:
+  push:
+    branches:
+      - issue-23-synclab-release-signing
+    paths:
+      - .github/workflows/issue23-reusable-probe.yml
+
+jobs:
+  probe:
+    permissions:
+      contents: read
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/reusable-public-probe.yml@issue-6-public-api-signing
