@@ -4,5 +4,5 @@
 // framework can preserve/update Kotlin DSL syntax directly, then move versionName/versionCode
 // back into android/app/build.gradle.kts and point synclab-release.json there.
 
-versionName "17.90.16.564"
-versionCode 1790160564
+versionName "18.0.0.0"
+versionCode 1800000000
