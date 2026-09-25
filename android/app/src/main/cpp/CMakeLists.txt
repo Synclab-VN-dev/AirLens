@@ -39,4 +39,7 @@ else()
 endif()
 
 # Enforce 16 KB alignment for ELF segments (Android 5+ requirement)
-target_link_options(openstream_srt PRIVATE "LINKER:-z,max-page-size=0x4000")
+target_link_options(openstream_srt PRIVATE
+    "LINKER:-z,max-page-size=0x4000"
+    "LINKER:-z,common-page-size=0x4000"
+)
