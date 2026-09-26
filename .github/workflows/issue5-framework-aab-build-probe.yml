@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   probe:
@@ -86,3 +87,8 @@ jobs:
             synclab-unsigned-artifacts/release.apk
             synclab-unsigned-artifacts/play.aab
           if-no-files-found: error
+
+      - name: Dispatch full Release consumer dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --ref issue-5-google-play-aab -f bump=d -f dryRun=true
