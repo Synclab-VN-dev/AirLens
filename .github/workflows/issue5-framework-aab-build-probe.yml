@@ -1,4 +1,5 @@
 name: Issue 5 Framework AAB Build Probe
+# Consumer probe rerun for PR #8 acceptance G
 
 on:
   push:
