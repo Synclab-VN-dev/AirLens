@@ -1,5 +1,5 @@
 name: Issue 5 Framework AAB Build Probe
-# Consumer probe rerun for PR #8 public-api-only final validation
+# Consumer probe rerun for PR #8 clean public-api-only head
 
 on:
   push:
