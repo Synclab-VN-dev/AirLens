@@ -1,0 +1,25 @@
+name: Issue 5 release dry-run
+
+on:
+  push:
+    branches:
+      - issue-5-google-play-aab
+    paths:
+      - .github/workflows/issue5-release-dryrun.yml
+
+jobs:
+  android-release:
+    permissions:
+      contents: write
+      actions: read
+      packages: read
+    uses: Synclab-VN-dev/synclab-CICD-framework/.github/workflows/android-release.yml@v1.1.1
+    with:
+      configFile: synclab-release.json
+      bump: d
+      versionName: ""
+      dryRun: true
+      frameworkRef: v1.1.1
+      signingMode: public-api
+      signingUrl: https://sign.synclab.com.vn
+    secrets: inherit
