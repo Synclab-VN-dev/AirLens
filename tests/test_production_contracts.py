@@ -133,17 +133,31 @@ def test_pairing_url_acceptance_contract_clamps_network_values() -> None:
 
 def test_release_workflow_delegates_signed_android_release_to_synclab() -> None:
     release_workflow = read(".github/workflows/release.yml")
-    config = read("synclab-release.json")
+    config = json.loads(read("synclab-release.json"))
 
     assert "synclab-CICD-framework/.github/workflows/android-release.yml" in release_workflow
     assert "signingMode: public-api" in release_workflow
     assert "signingUrl: https://sign.synclab.com.vn" in release_workflow
     assert "dryRun:" in release_workflow
+    assert "@v1.1.1" in release_workflow
+    assert "frameworkRef: v1.1.1" in release_workflow
+    assert "issue-5-aab-artifacts" not in release_workflow
+    assert "issue-6-public-api-signing" not in release_workflow
     assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" not in release_workflow
-    assert '"targets": ["release"]' in config
-    assert '"profile": "prod"' in config
-    assert '"expectedSignerDn": "CN=Synclab Android Upload' in config
-    assert '"assetName": "{project}-release-{versionName}.apk"' in config
+
+    assert config["bundle"]["targets"] == ["release", "play"]
+
+    release = config["targets"]["release"]
+    assert release["artifactType"] == "apk"
+    assert release["signing"]["profile"] == "prod"
+    assert release["signing"]["expectedSignerDn"].startswith("CN=Synclab Android Upload")
+    assert release["assetName"] == "{project}-release-{versionName}.apk"
+
+    play = config["targets"]["play"]
+    assert play["artifactType"] == "aab"
+    assert play["signing"]["profile"] == "prod"
+    assert play["signing"]["expectedSignerDn"].startswith("CN=Synclab Android Upload")
+    assert play["assetName"] == "{project}-release-{versionName}.aab"
 
 
 def test_android_and_obs_release_artifacts_stay_atomic() -> None:

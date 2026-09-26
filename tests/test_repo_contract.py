@@ -339,13 +339,24 @@ def test_release_build_is_unsigned_before_synclab_signing_and_keystores_are_igno
     assert "synclabVersionFile" in app_gradle
     assert "openstream.versionName" in app_gradle
     assert "openstream.versionCode" in app_gradle
-    version_name_match = re.search(r'versionName\s+"(\d+)\.(\d+)\.(\d+)\.(\d+)"', version_source)
-    version_code_match = re.search(r"versionCode\s+(\d+)", version_source)
+
+    version_name_match = re.search(
+        r'^versionName "([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)"$',
+        version_source,
+        re.MULTILINE,
+    )
+    version_code_match = re.search(
+        r"^versionCode ([0-9]+)$",
+        version_source,
+        re.MULTILINE,
+    )
     assert version_name_match is not None
     assert version_code_match is not None
-    a, b, c, d = map(int, version_name_match.groups())
-    expected_version_code = a * 100000000 + b * 1000000 + c * 10000 + d
-    assert int(version_code_match.group(1)) == expected_version_code
+
+    a, b, c, d = (int(part) for part in version_name_match.group(1).split("."))
+    expected_code = a * 100000000 + b * 1000000 + c * 10000 + d
+    assert int(version_code_match.group(1)) == expected_code
+
     assert '"profile": "prod"' in config
     assert "*.keystore" in gitignore
     assert "*.jks" in gitignore

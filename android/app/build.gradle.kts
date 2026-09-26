@@ -29,12 +29,13 @@ val openStreamVersionCode = providers.gradleProperty("openstream.versionCode")
 
 android {
     namespace = "com.synclab.airlens"
-    compileSdk = 35
+    compileSdk = 36
+    ndkVersion = "28.0.13004108"
 
     defaultConfig {
         applicationId = "com.synclab.airlens"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = openStreamVersionCode.get()
         versionName = openStreamVersionName.get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
