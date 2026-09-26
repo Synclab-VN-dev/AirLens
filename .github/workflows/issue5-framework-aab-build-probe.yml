@@ -1,5 +1,5 @@
 name: Issue 5 Framework AAB Build Probe
-# Consumer probe rerun for PR #8 clean public-api-only head
+# M2 preview-profile production acceptance
 
 on:
   push:
@@ -92,3 +92,41 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run release.yml --ref issue-5-google-play-aab -f bump=d -f dryRun=true
+
+      - name: Wait for dispatched Release run
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=""
+          for _ in $(seq 1 60); do
+            run_id="$(gh run list --workflow release.yml --branch issue-5-google-play-aab --event workflow_dispatch --limit 10 --json databaseId,headSha --jq '.[] | select(.headSha=="'${GITHUB_SHA}'") | .databaseId' | head -n1)"
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 5
+          done
+          test -n "$run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          gh run watch "$run_id" --exit-status
+
+      - name: Verify preview AAB audit
+        env:
+          SYNCLAB_SIGNING_API_KEY_PREVIEW: ${{ secrets.SYNCLAB_SIGNING_API_KEY_PREVIEW }}
+        run: |
+          set -euo pipefail
+          test -n "${SYNCLAB_SIGNING_API_KEY_PREVIEW:-}"
+          audit="$(curl -fsS             -H "X-Synclab-Api-Key: $SYNCLAB_SIGNING_API_KEY_PREVIEW"             "https://sign.synclab.com.vn/v1/audit/recent?limit=100")"
+          item="$(printf '%s' "$audit" | jq -c --arg run_id "${{ steps.release.outputs.run_id }}" '
+            .items[]
+            | select(.artifact_type=="aab")
+            | select(.profile=="preview")
+            | select(.result=="success")
+            | select(.input_sha256 != null and .output_sha256 != null)
+          ' | head -n1)"
+          test -n "$item"
+          printf '%s\n' "$item" | jq '{request_id,ts,api_key_name,profile,artifact_type,input_sha256,output_sha256,result}'
+          test "$(printf '%s' "$item" | jq -r '.artifact_type')" = "aab"
+          test "$(printf '%s' "$item" | jq -r '.profile')" = "preview"
+          test "$(printf '%s' "$item" | jq -r '.result')" = "success"
