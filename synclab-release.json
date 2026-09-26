@@ -47,9 +47,9 @@
       "artifactPattern": "android/app/build/outputs/bundle/release/*.aab",
       "signing": {
         "enabled": true,
-        "profile": "prod",
-        "expectedSignerDn": "CN=Synclab Android Upload, OU=Synclab Signing, O=Synclab, L=Hanoi, ST=Hanoi, C=VN",
-        "expectedSignerSha256": "8D1C1E8F11CCAE7E8B4F2035F5687E2DD360346E20806A9F7D09A6ABC6A8794D"
+        "profile": "preview",
+        "expectedSignerDn": "CN=Synclab Android Preview, OU=Synclab Signing, O=Synclab, L=Hanoi, ST=Hanoi, C=VN",
+        "expectedSignerSha256": "1E7CABC46DA107BBA259DD78E1D521E9A3BFF62A94430FE9A4AB9292649D237D"
       },
       "assetName": "{project}-release-{versionName}.aab"
     }
