@@ -139,6 +139,10 @@ def test_release_workflow_delegates_signed_android_release_to_synclab() -> None:
     assert "signingMode: public-api" in release_workflow
     assert "signingUrl: https://sign.synclab.com.vn" in release_workflow
     assert "dryRun:" in release_workflow
+    assert "@v1.1.1" in release_workflow
+    assert "frameworkRef: v1.1.1" in release_workflow
+    assert "issue-5-aab-artifacts" not in release_workflow
+    assert "issue-6-public-api-signing" not in release_workflow
     assert "OPENSTREAM_RELEASE_KEYSTORE_BASE64" not in release_workflow
 
     assert config["bundle"]["targets"] == ["release", "play"]
