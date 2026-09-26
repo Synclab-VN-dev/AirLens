@@ -339,8 +339,8 @@ def test_release_build_is_unsigned_before_synclab_signing_and_keystores_are_igno
     assert "synclabVersionFile" in app_gradle
     assert "openstream.versionName" in app_gradle
     assert "openstream.versionCode" in app_gradle
-    version_name_match = re.search(r'versionName\\s+"(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)"', version_source)
-    version_code_match = re.search(r"versionCode\\s+(\\d+)", version_source)
+    version_name_match = re.search(r'versionName\s+"(\d+)\.(\d+)\.(\d+)\.(\d+)"', version_source)
+    version_code_match = re.search(r"versionCode\s+(\d+)", version_source)
     assert version_name_match is not None
     assert version_code_match is not None
     a, b, c, d = map(int, version_name_match.groups())
