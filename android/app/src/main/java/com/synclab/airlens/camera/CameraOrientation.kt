@@ -10,7 +10,12 @@ internal fun normalizeRightAngleDegrees(degrees: Int): Int {
 
 internal fun quantizeDeviceOrientationDegrees(orientationDegrees: Int): Int {
     if (orientationDegrees < 0) return 0
-    return (((orientationDegrees + 45) / 90) * 90) % 360
+    return when (orientationDegrees) {
+        in 45..134 -> 270
+        in 135..224 -> 180
+        in 225..314 -> 90
+        else -> 0
+    }
 }
 
 /**
