@@ -11,6 +11,8 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PhoneDiscoveryAdvertiser(
@@ -23,7 +25,7 @@ class PhoneDiscoveryAdvertiser(
 ) {
     private val running = AtomicBoolean(false)
     @Volatile private var worker: Thread? = null
-    private val wakeLock = Object()
+    private val wakeSignal = Semaphore(0)
     private val instanceId = UUID.randomUUID().toString()
 
     fun start() {
@@ -37,16 +39,14 @@ class PhoneDiscoveryAdvertiser(
     }
 
     fun requestImmediateAdvertise() {
-        synchronized(wakeLock) {
-            wakeLock.notifyAll()
+        if (wakeSignal.availablePermits() == 0) {
+            wakeSignal.release()
         }
     }
 
     fun stop() {
         running.set(false)
-        synchronized(wakeLock) {
-            wakeLock.notifyAll()
-        }
+        wakeSignal.release()
         val thread = worker
         thread?.interrupt()
         if (thread != null && thread !== Thread.currentThread()) {
@@ -77,9 +77,8 @@ class PhoneDiscoveryAdvertiser(
                     }
                 }
                 try {
-                    synchronized(wakeLock) {
-                        if (running.get()) wakeLock.wait(1_000)
-                    }
+                    wakeSignal.tryAcquire(1, 1, TimeUnit.SECONDS)
+                    wakeSignal.drainPermits()
                 } catch (_: InterruptedException) {
                     break
                 }
