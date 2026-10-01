@@ -3,6 +3,7 @@ package com.synclab.airlens
 import android.content.Context
 import android.content.Intent
 import android.view.View
+import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -40,6 +41,7 @@ class Phase7SettingsE2eTest {
             .putString(SettingsActivity.KEY_OBS_HOST, host)
             .putInt(SettingsActivity.KEY_OBS_PORT, ConnectionTarget.DEFAULT_PORT)
             .putInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
+            .putBoolean(SettingsActivity.KEY_SYNC_ORIENTATION_WITH_OBS, false)
             .apply()
 
         val activity = instrumentation.startActivitySync(
@@ -66,6 +68,7 @@ class Phase7SettingsE2eTest {
 
         val saveSettings = activity.findViewById<TextView>(R.id.btnSaveSettings)
         val profileEmpty = activity.findViewById<View>(R.id.settingsProfileEmpty)
+        val orientationSync = activity.findViewById<CheckBox>(R.id.settingsSyncOrientationWithObs)
 
         instrumentation.runOnMainSync {
             assertTrue("Saving the current config must not require a profile", saveSettings.isEnabled)
@@ -74,6 +77,8 @@ class Phase7SettingsE2eTest {
                 View.VISIBLE,
                 profileEmpty.visibility,
             )
+            assertFalse("OBS orientation sync must default OFF", orientationSync.isChecked)
+            orientationSync.performClick()
             saveSettings.performClick()
         }
         instrumentation.waitForIdleSync()
@@ -82,6 +87,11 @@ class Phase7SettingsE2eTest {
         assertEquals(base.width, StreamConfigStore.load(context).width)
         assertEquals(base.height, StreamConfigStore.load(context).height)
         assertEquals(base.fps, StreamConfigStore.load(context).fps)
+        assertTrue(
+            "OBS orientation sync flag must persist after Save",
+            context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(SettingsActivity.KEY_SYNC_ORIENTATION_WITH_OBS, false),
+        )
         assertFalse("Save must keep the settings screen open", activity.isFinishing)
 
         instrumentation.runOnMainSync { activity.finish() }
