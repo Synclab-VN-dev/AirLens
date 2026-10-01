@@ -119,6 +119,11 @@
     <string name="st_srt_transport_sub">Cách video đi tới OBS</string>
     <string name="st_srt_summary">Cổng %1$d · %2$d ms</string>
 
+    <!-- OBS view -->
+    <string name="st_section_obs_view">Hiển thị OBS</string>
+    <string name="st_sync_orientation_obs">Đồng bộ hướng camera với OBS</string>
+    <string name="st_sync_orientation_obs_sub">Tự động xoay source trên OBS khi xoay điện thoại. Tắt để giữ hướng hiển thị cố định hiện tại.</string>
+
     <!-- Advanced -->
     <string name="st_encoder_internals">Thông số encoder</string>
     <string name="st_advanced_preview_closed">Profile H.264, chế độ bitrate, B-frames, keyframe, kích thước tùy chỉnh</string>
