@@ -31,6 +31,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import com.synclab.airlens.camera.Camera2Controller
 import com.synclab.airlens.camera.CameraLens
+import com.synclab.airlens.camera.DeviceOrientationTracker
+import com.synclab.airlens.camera.resolveObsCameraRotation
 import com.synclab.airlens.control.CameraControlServer
 import com.synclab.airlens.discovery.DiscoveredObsDevice
 import com.synclab.airlens.discovery.ObsDiscoveryClient
@@ -121,6 +123,7 @@ class MainActivity : Activity() {
     private lateinit var controlServer: CameraControlServer
     private lateinit var hud: CameraHudController
     private lateinit var hudCollector: HudTelemetryCollector
+    private lateinit var orientationTracker: DeviceOrientationTracker
 
     private val streamConfig = StreamConfig.Default1080p30
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -141,6 +144,9 @@ class MainActivity : Activity() {
     private var originalBrightness = -1f
     private var torchOn = false
     @Volatile private var currentLens: CameraLens = CameraLens.Back
+    @Volatile private var syncOrientationWithObs = false
+    @Volatile private var advertisedObsRotation = 0
+    @Volatile private var deviceOrientationDegrees = 0
     private var availableLenses: List<CameraLens> = listOf(CameraLens.Back)
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private var zoomHideRunnable: Runnable? = null
@@ -196,10 +202,13 @@ class MainActivity : Activity() {
 
         setupGestureDetector()
 
-        currentPort = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        val settingsPrefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        currentPort = settingsPrefs
             .getInt(SettingsActivity.KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT)
             .takeIf { it in 1024..65535 }
             ?: ConnectionTarget.DEFAULT_PORT
+        syncOrientationWithObs =
+            settingsPrefs.getBoolean(SettingsActivity.KEY_SYNC_ORIENTATION_WITH_OBS, false)
 
         micSummary = getString(
             R.string.hud_f_khz_channels,
@@ -214,6 +223,7 @@ class MainActivity : Activity() {
             port = currentPort,
             busyProvider = { phoneConnected || reservedBy != null },
             reservedByProvider = { reservedBy },
+            rotationProvider = { advertisedObsRotation },
         )
         obsDiscoveryClient = ObsDiscoveryClient(
             context = this,
@@ -242,7 +252,14 @@ class MainActivity : Activity() {
             previewSurfaceProvider = { cameraPreview.holder.surface },
             lensProvider = { currentLens },
             targetFps = streamConfig.fps,
+            onSensorOrientationChanged = {
+                mainHandler.post { updateAdvertisedObsRotation() }
+            },
         )
+        orientationTracker = DeviceOrientationTracker(this) { rotation ->
+            deviceOrientationDegrees = rotation
+            updateAdvertisedObsRotation()
+        }
         controlServer = CameraControlServer(
             cameraProvider = { camera },
             lensListProvider = { availableLenses },
@@ -321,7 +338,10 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         activityStarted = true
+        reloadOrientationSyncSetting()
+        if (syncOrientationWithObs) orientationTracker.start()
         phoneAdvertiser.start()
+        updateAdvertisedObsRotation(force = true)
         obsDiscoveryClient.start()
         controlServer.start()
         hudCollector.start()
@@ -333,6 +353,7 @@ class MainActivity : Activity() {
         super.onResume()
         // Reload listening port from settings if it changed
         val settingsPrefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        reloadOrientationSyncSetting()
         val savedPort = settingsPrefs.getInt(SettingsActivity.KEY_LISTENING_PORT, currentPort)
         if (savedPort != currentPort && savedPort in 1024..65535) {
             changePort(savedPort)
@@ -350,6 +371,7 @@ class MainActivity : Activity() {
         callerModeActive = false
         lostAtElapsedMs = null
         cancelLensRestart()
+        orientationTracker.stop()
         camera.stop()
         stopPhoneServer(clearReservation = false, updateStatus = false)
         hudCollector.stop()
@@ -623,6 +645,7 @@ class MainActivity : Activity() {
         }
         currentLens = lens
         camera.switchLens(lens)
+        updateAdvertisedObsRotation()
         // If we were streaming, re-create the encoder and re-attach after the camera settles
         if (wasStreaming) {
             cancelLensRestart()
@@ -1758,9 +1781,50 @@ class MainActivity : Activity() {
             port = currentPort,
             busyProvider = { phoneConnected || reservedBy != null },
             reservedByProvider = { reservedBy },
+            rotationProvider = { advertisedObsRotation },
         )
         phoneAdvertiser.start()
+        phoneAdvertiser.requestImmediateAdvertise()
         startPhoneServerIfAllowed()
+    }
+
+    // ─────────────────────────── OBS orientation sync ───────────────────────────
+
+    private fun reloadOrientationSyncSetting() {
+        val enabled = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(SettingsActivity.KEY_SYNC_ORIENTATION_WITH_OBS, false)
+        if (enabled == syncOrientationWithObs) return
+
+        syncOrientationWithObs = enabled
+        if (enabled && activityStarted) {
+            orientationTracker.start()
+        } else {
+            orientationTracker.stop()
+        }
+        updateAdvertisedObsRotation(force = true)
+    }
+
+    private fun updateAdvertisedObsRotation(force: Boolean = false) {
+        val nextRotation = if (!syncOrientationWithObs) {
+            0
+        } else {
+            val sensorOrientation = camera.sensorOrientationDegrees() ?: return
+            resolveObsCameraRotation(
+                sensorOrientationDegrees = sensorOrientation,
+                deviceOrientationDegrees = deviceOrientationDegrees,
+                frontFacing = currentLens.isFrontFacing,
+            )
+        }
+        if (!force && nextRotation == advertisedObsRotation) return
+
+        advertisedObsRotation = nextRotation
+        if (::phoneAdvertiser.isInitialized) {
+            phoneAdvertiser.requestImmediateAdvertise()
+        }
+        Log.i(
+            "OpenStream",
+            "OBS orientation sync ${if (syncOrientationWithObs) "enabled" else "disabled"}: rotation=$nextRotation",
+        )
     }
 
     // ─────────────────────────── Preview aspect ratio fix ───────────────────────────
