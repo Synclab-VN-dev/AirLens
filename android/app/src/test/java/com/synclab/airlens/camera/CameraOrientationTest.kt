@@ -8,10 +8,12 @@ class CameraOrientationTest {
     fun quantizesPhysicalOrientationToRightAngles() {
         assertEquals(0, quantizeDeviceOrientationDegrees(0))
         assertEquals(0, quantizeDeviceOrientationDegrees(44))
-        assertEquals(90, quantizeDeviceOrientationDegrees(45))
-        assertEquals(90, quantizeDeviceOrientationDegrees(134))
+        assertEquals(270, quantizeDeviceOrientationDegrees(45))
+        assertEquals(270, quantizeDeviceOrientationDegrees(134))
         assertEquals(180, quantizeDeviceOrientationDegrees(135))
-        assertEquals(270, quantizeDeviceOrientationDegrees(315))
+        assertEquals(90, quantizeDeviceOrientationDegrees(225))
+        assertEquals(90, quantizeDeviceOrientationDegrees(314))
+        assertEquals(0, quantizeDeviceOrientationDegrees(315))
         assertEquals(0, quantizeDeviceOrientationDegrees(359))
     }
 
