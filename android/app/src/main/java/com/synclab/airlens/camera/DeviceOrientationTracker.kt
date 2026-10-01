@@ -28,14 +28,14 @@ class DeviceOrientationTracker(
             val quantized = quantizeDeviceOrientationDegrees(orientation)
             if (quantized == stableRotation) {
                 candidateRotation = null
-                pendingCommit?.let(handler::removeCallbacks)
+                pendingCommit?.let { handler.removeCallbacks(it) }
                 pendingCommit = null
                 return
             }
             if (candidateRotation == quantized) return
 
             candidateRotation = quantized
-            pendingCommit?.let(handler::removeCallbacks)
+            pendingCommit?.let { handler.removeCallbacks(it) }
             val commit = Runnable {
                 if (candidateRotation != quantized) return@Runnable
                 pendingCommit = null
@@ -57,7 +57,7 @@ class DeviceOrientationTracker(
     fun stop() {
         listener.disable()
         candidateRotation = null
-        pendingCommit?.let(handler::removeCallbacks)
+        pendingCommit?.let { handler.removeCallbacks(it) }
         pendingCommit = null
     }
 
