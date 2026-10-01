@@ -36,6 +36,7 @@ class Camera2Controller(
     private val previewSurfaceProvider: () -> Surface,
     private val lensProvider: () -> CameraLens = { CameraLens.Back },
     private val targetFps: Int = 30,
+    private val onSensorOrientationChanged: (Int?) -> Unit = {},
 ) {
     private val cameraManager = context.getSystemService(CameraManager::class.java)
     private val thread = HandlerThread("OpenStreamCamera")
@@ -44,6 +45,7 @@ class Camera2Controller(
     @Volatile private var session: CameraCaptureSession? = null
     private var streamingSurface: Surface? = null
     @Volatile private var activeCameraId: String? = null
+    @Volatile private var activeSensorOrientationDegrees: Int? = null
     private var activeLens: CameraLens? = null
     private val cameraGeneration = AtomicLong()
     private val sessionGeneration = AtomicLong()
@@ -84,6 +86,9 @@ class Camera2Controller(
      * Lock-free so telemetry samplers never wait on the camera lifecycle.
      */
     val activeCameraIdOrNull: String? get() = activeCameraId
+
+    /** Sensor orientation for the camera that is currently open, when known. */
+    fun sensorOrientationDegrees(): Int? = activeSensorOrientationDegrees
 
     /**
      * Latest per-frame metadata snapshot, at most ~[METADATA_PUBLISH_INTERVAL_NS] old.
@@ -260,6 +265,8 @@ class Camera2Controller(
 
             activeLens = lens
             activeCameraId = newId
+            activeSensorOrientationDegrees = null
+            onSensorOrientationChanged(null)
             currentZoomRatio = 1.0f
             torchEnabled = false
 
@@ -390,6 +397,8 @@ class Camera2Controller(
 
     private fun loadZoomCapabilities(cameraId: String) {
         val chars = cameraManager.getCameraCharacteristics(cameraId)
+        activeSensorOrientationDegrees = chars.get(CameraCharacteristics.SENSOR_ORIENTATION)
+        onSensorOrientationChanged(activeSensorOrientationDegrees)
         cacheFrameMetadataStatics(cameraId, chars)
         val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         Log.i(
