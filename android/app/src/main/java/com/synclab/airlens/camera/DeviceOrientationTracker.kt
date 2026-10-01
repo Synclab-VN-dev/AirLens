@@ -24,7 +24,7 @@ class DeviceOrientationTracker(
 
     private val listener = object : OrientationEventListener(context.applicationContext) {
         override fun onOrientationChanged(orientation: Int) {
-            if (orientation == ORIENTATION_UNKNOWN) return
+            if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return
             val quantized = quantizeDeviceOrientationDegrees(orientation)
             if (quantized == stableRotation) {
                 candidateRotation = null
