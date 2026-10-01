@@ -1,5 +1,6 @@
 #include "../src/async-control-client.hpp"
 #include "../src/media-clock.hpp"
+#include "../src/orientation-contract.hpp"
 
 #include <atomic>
 #include <cstdlib>
@@ -12,6 +13,15 @@ void check(bool condition) {
 }  // namespace
 
 int main() {
+  {
+    check(openstream_sanitize_async_rotation(0) == 0);
+    check(openstream_sanitize_async_rotation(90) == 90);
+    check(openstream_sanitize_async_rotation(180) == 180);
+    check(openstream_sanitize_async_rotation(270) == 270);
+    check(openstream_sanitize_async_rotation(-90) == 0);
+    check(openstream_sanitize_async_rotation(45) == 0);
+  }
+
   {
     MediaClock clock;
     const uint64_t origin = 10'000'000'000ULL;
