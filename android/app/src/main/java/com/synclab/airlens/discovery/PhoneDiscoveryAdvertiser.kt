@@ -19,9 +19,11 @@ class PhoneDiscoveryAdvertiser(
     private val port: Int,
     private val busyProvider: () -> Boolean,
     private val reservedByProvider: () -> String? = { null },
+    private val rotationProvider: () -> Int = { 0 },
 ) {
     private val running = AtomicBoolean(false)
     @Volatile private var worker: Thread? = null
+    private val wakeLock = Object()
     private val instanceId = UUID.randomUUID().toString()
 
     fun start() {
@@ -34,8 +36,17 @@ class PhoneDiscoveryAdvertiser(
         }
     }
 
+    fun requestImmediateAdvertise() {
+        synchronized(wakeLock) {
+            wakeLock.notifyAll()
+        }
+    }
+
     fun stop() {
         running.set(false)
+        synchronized(wakeLock) {
+            wakeLock.notifyAll()
+        }
         val thread = worker
         thread?.interrupt()
         if (thread != null && thread !== Thread.currentThread()) {
@@ -66,7 +77,9 @@ class PhoneDiscoveryAdvertiser(
                     }
                 }
                 try {
-                    Thread.sleep(1_000)
+                    synchronized(wakeLock) {
+                        if (running.get()) wakeLock.wait(1_000)
+                    }
                 } catch (_: InterruptedException) {
                     break
                 }
@@ -92,10 +105,16 @@ class PhoneDiscoveryAdvertiser(
             .put("width", config.width)
             .put("height", config.height)
             .put("fps", config.fps)
+            .put("rotation", sanitizeRotation(rotationProvider()))
             .put("controlPort", 9001)
             .put("busy", busyProvider())
             .put("reservedBy", reservedByProvider().orEmpty())
         return "$PREFIX $json"
+    }
+
+    private fun sanitizeRotation(rotation: Int): Int = when (rotation) {
+        0, 90, 180, 270 -> rotation
+        else -> 0
     }
 
     private fun localWifiAddress(): String? {
