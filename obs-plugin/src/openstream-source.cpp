@@ -21,6 +21,7 @@
 #include "async-control-client.hpp"
 #include "media-clock.hpp"
 #include "openstream-control-api.hpp"
+#include "orientation-contract.hpp"
 #include <util/platform.h>
 
 #include <chrono>
@@ -31,6 +32,7 @@
 #include <inttypes.h>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -536,6 +538,7 @@ struct PhoneDevice {
   int width = 1920;
   int height = 1080;
   int fps = 30;
+  int rotation = 0;
   int bitrate_mbps = kDefaultBitrateMbps;
   bool busy = false;
   std::string reserved_by;
@@ -546,6 +549,10 @@ struct PhoneDevice {
 class PhoneDiscoveryReceiver {
  public:
   static constexpr const char *kAutoPhoneId = "auto";
+
+  void set_device_updated_callback(std::function<void(const PhoneDevice &)> callback) {
+    device_updated_callback_ = std::move(callback);
+  }
 
   void start() {
     if (running_.exchange(true)) {
@@ -712,6 +719,8 @@ class PhoneDiscoveryReceiver {
       device.width = std::clamp(json_int_value(json, "width").value_or(1920), 16, 8192);
       device.height = std::clamp(json_int_value(json, "height").value_or(1080), 16, 8192);
       device.fps = std::clamp(json_int_value(json, "fps").value_or(30), 1, 240);
+      device.rotation = static_cast<int>(openstream_sanitize_async_rotation(
+          json_int_value(json, "rotation").value_or(0)));
       device.bitrate_mbps = std::clamp(
           json_int_value(json, "bitrateMbps").value_or(kDefaultBitrateMbps),
           kMinBitrateMbps,
@@ -723,6 +732,9 @@ class PhoneDiscoveryReceiver {
         std::lock_guard<std::mutex> lock(mutex_);
         pruneExpiredLocked();
         devices_[device.instance_id] = device;
+      }
+      if (device_updated_callback_) {
+        device_updated_callback_(device);
       }
       blog(LOG_INFO,
            "[OpenStream] Discovered phone %s at %s:%d%s",
@@ -739,6 +751,7 @@ class PhoneDiscoveryReceiver {
   std::thread worker_;
   mutable std::mutex mutex_;
   std::map<std::string, PhoneDevice> devices_;
+  std::function<void(const PhoneDevice &)> device_updated_callback_;
 };
 
 class DiscoveryAdvertiser {
@@ -892,6 +905,7 @@ struct OpenStreamSource {
   uint64_t frames_output = 0;
   uint64_t stale_video_frames = 0;
   uint64_t stale_audio_frames = 0;
+  long active_async_rotation = 0;
   double last_cam_zoom = 1.0;
   std::shared_ptr<AsyncControlClient> camera_controls =
       std::make_shared<AsyncControlClient>();
@@ -1038,9 +1052,39 @@ bool send_control_command(const std::string &host, int port,
 }
 
 void set_active_phone(OpenStreamSource *ctx, std::optional<PhoneDevice> phone) {
-  std::lock_guard<std::mutex> lock(ctx->settings_mutex);
-  ctx->slot_busy = phone.has_value();
-  ctx->active_phone = std::move(phone);
+  const long next_rotation =
+      phone.has_value() ? openstream_sanitize_async_rotation(phone->rotation) : 0L;
+  bool rotation_changed = false;
+  {
+    std::lock_guard<std::mutex> lock(ctx->settings_mutex);
+    ctx->slot_busy = phone.has_value();
+    ctx->active_phone = std::move(phone);
+    rotation_changed = ctx->active_async_rotation != next_rotation;
+    ctx->active_async_rotation = next_rotation;
+  }
+  if (rotation_changed) {
+    obs_source_set_async_rotation(ctx->source, next_rotation);
+    blog(LOG_INFO, "[OpenStream] Applied async camera rotation: %ld", next_rotation);
+  }
+}
+
+void apply_discovered_phone_rotation(OpenStreamSource *ctx, const PhoneDevice &device) {
+  const long next_rotation = openstream_sanitize_async_rotation(device.rotation);
+  bool rotation_changed = false;
+  {
+    std::lock_guard<std::mutex> lock(ctx->settings_mutex);
+    if (!ctx->active_phone.has_value() ||
+        ctx->active_phone->instance_id != device.instance_id) {
+      return;
+    }
+    ctx->active_phone->rotation = static_cast<int>(next_rotation);
+    rotation_changed = ctx->active_async_rotation != next_rotation;
+    ctx->active_async_rotation = next_rotation;
+  }
+  if (rotation_changed) {
+    obs_source_set_async_rotation(ctx->source, next_rotation);
+    blog(LOG_INFO, "[OpenStream] Updated async camera rotation: %ld", next_rotation);
+  }
 }
 
 std::optional<PhoneDevice> control_phone(OpenStreamSource *ctx) {
@@ -2049,6 +2093,8 @@ void *openstream_create(obs_data_t *settings, obs_source_t *source) {
   obs_data_set_string(settings, "source_instance_id", ctx->instance_id.c_str());
   obs_data_set_string(settings, "slot_id", ctx->slot_id.c_str());
   obs_data_set_string(settings, "slot_label", ctx->slot_label.c_str());
+  ctx->phone_discovery.set_device_updated_callback(
+      [ctx](const PhoneDevice &device) { apply_discovered_phone_rotation(ctx, device); });
   ctx->phone_discovery.start();
   openstream_update(ctx, settings);
   return ctx;
