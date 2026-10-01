@@ -102,7 +102,7 @@ The Android app advertises itself on the same multicast group:
 **Beacon format:**
 
 ```text
-OPENSTREAM_PHONE/1 {"type":"dev.openstream.phone","version":1,"name":"<device-name>","instanceId":"...","host":"<phone-ip>","listenerPort":9000,"controlPort":9001,"latencyMs":120,"codec":"video/avc","width":1920,"height":1080,"fps":30,"bitrateMbps":12,"busy":false,"reservedBy":""}
+OPENSTREAM_PHONE/1 {"type":"dev.openstream.phone","version":1,"name":"<device-name>","instanceId":"...","host":"<phone-ip>","listenerPort":9000,"controlPort":9001,"latencyMs":120,"codec":"video/avc","width":1920,"height":1080,"fps":30,"rotation":90,"bitrateMbps":12,"busy":false,"reservedBy":""}
 ```
 
 | Field | Type | Description |
@@ -118,9 +118,12 @@ OPENSTREAM_PHONE/1 {"type":"dev.openstream.phone","version":1,"name":"<device-na
 | `width` | int | Stream width in pixels |
 | `height` | int | Stream height in pixels |
 | `fps` | int | Stream frame rate |
+| `rotation` | int | Optional OBS async-source rotation in degrees: `0`, `90`, `180`, or `270`. Missing/invalid values must fall back to `0`. |
 | `bitrateMbps` | int | Stream bitrate |
 | `busy` | bool | Whether the phone is already reserved or streaming |
 | `reservedBy` | string | OBS source instance that currently owns the reservation, or empty |
+
+The phone normally advertises once per second. When the optional **Sync camera orientation with OBS** setting is enabled, Android also sends an immediate beacon whenever the stable effective camera rotation changes. The video encoder and SRT session remain unchanged; OBS applies the received value at the async source layer. When the setting is disabled, the phone advertises `rotation: 0` so existing fixed-orientation behavior is preserved.
 
 OBS keeps a registry of discovered phones keyed by `instanceId`. Each
 OpenStream source has a `selected_phone_id` setting. `auto` selects the first
