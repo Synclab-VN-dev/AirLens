@@ -119,6 +119,11 @@
     <string name="st_srt_transport_sub">How the video travels to OBS</string>
     <string name="st_srt_summary">Port %1$d · %2$d ms</string>
 
+    <!-- OBS view -->
+    <string name="st_section_obs_view">OBS view</string>
+    <string name="st_sync_orientation_obs">Sync camera orientation with OBS</string>
+    <string name="st_sync_orientation_obs_sub">Automatically rotate the OBS source when this phone rotates. Off keeps the current fixed orientation.</string>
+
     <!-- Advanced -->
     <string name="st_encoder_internals">Encoder internals</string>
     <string name="st_advanced_preview_closed">H.264 profile, bitrate mode, B-frames, keyframes, custom size</string>
