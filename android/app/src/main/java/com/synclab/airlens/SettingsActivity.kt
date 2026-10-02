@@ -15,7 +15,6 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -73,7 +72,7 @@ class SettingsActivity : Activity() {
     private lateinit var hostError: TextView
     private lateinit var rowSrt: LinearLayout
     private lateinit var srtValue: TextView
-    private lateinit var syncOrientationCheckbox: CheckBox
+    private lateinit var syncOrientationToggle: PillToggle
 
     // ---- Views: advanced ----
     private lateinit var rowAdvancedHeader: LinearLayout
@@ -338,7 +337,7 @@ class SettingsActivity : Activity() {
         hostError = findViewById(R.id.settingsHostError)
         rowSrt = findViewById(R.id.rowSrt)
         srtValue = findViewById(R.id.settingsSrtValue)
-        syncOrientationCheckbox = findViewById(R.id.settingsSyncOrientationWithObs)
+        syncOrientationToggle = findViewById(R.id.settingsSyncOrientationWithObs)
         rowAdvancedHeader = findViewById(R.id.rowAdvancedHeader)
         advancedPreview = findViewById(R.id.settingsAdvancedPreview)
         advancedChevron = findViewById(R.id.settingsAdvancedChevron)
@@ -391,7 +390,7 @@ class SettingsActivity : Activity() {
         rowAudioDetail.setOnClickListener { openSheet(audioSheet()) }
         rowObsHost.setOnClickListener { openSheet(connectionSheet()) }
         rowSrt.setOnClickListener { openSheet(connectionSheet()) }
-        syncOrientationCheckbox.setOnCheckedChangeListener { _, checked ->
+        syncOrientationToggle.onCheckedChanged = { checked ->
             if (!rendering) uiState.syncOrientationWithObs = checked
         }
         rowAdvancedHeader.setOnClickListener {
@@ -664,7 +663,7 @@ class SettingsActivity : Activity() {
         hostError.visibility = if (bad) View.VISIBLE else View.GONE
         connectionCard.setBackgroundResource(if (bad) R.drawable.bg_st_card_error else R.drawable.bg_st_card)
         srtValue.text = getString(R.string.st_srt_summary, uiState.obsPort, uiState.latencyMs)
-        syncOrientationCheckbox.isChecked = uiState.syncOrientationWithObs
+        syncOrientationToggle.setCheckedSilently(uiState.syncOrientationWithObs)
     }
 
     private fun renderAdvanced() {
