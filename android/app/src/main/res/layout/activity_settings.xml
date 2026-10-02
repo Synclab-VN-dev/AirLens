@@ -604,11 +604,10 @@
                                 android:text="@string/st_sync_orientation_obs_sub" />
                         </LinearLayout>
 
-                        <CheckBox
+                        <com.synclab.airlens.ui.PillToggle
                             android:id="@+id/settingsSyncOrientationWithObs"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:buttonTint="@color/st_accent"
                             android:contentDescription="@string/st_sync_orientation_obs" />
                     </LinearLayout>
                 </LinearLayout>
