@@ -3,7 +3,6 @@ package com.synclab.airlens
 import android.content.Context
 import android.content.Intent
 import android.view.View
-import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -68,7 +67,7 @@ class Phase7SettingsE2eTest {
 
         val saveSettings = activity.findViewById<TextView>(R.id.btnSaveSettings)
         val profileEmpty = activity.findViewById<View>(R.id.settingsProfileEmpty)
-        val orientationSync = activity.findViewById<CheckBox>(R.id.settingsSyncOrientationWithObs)
+        val orientationSync = activity.findViewById<PillToggle>(R.id.settingsSyncOrientationWithObs)
 
         instrumentation.runOnMainSync {
             assertTrue("Saving the current config must not require a profile", saveSettings.isEnabled)
