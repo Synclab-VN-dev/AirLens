@@ -576,6 +576,42 @@
                     </LinearLayout>
                 </LinearLayout>
 
+                <!-- OBS VIEW -->
+                <TextView
+                    style="@style/StSectionHeader"
+                    android:text="@string/st_section_obs_view" />
+
+                <LinearLayout
+                    style="@style/StCard"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        style="@style/StRow"
+                        android:clickable="false">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/StRowTitle"
+                                android:text="@string/st_sync_orientation_obs" />
+
+                            <TextView
+                                style="@style/StRowVi"
+                                android:text="@string/st_sync_orientation_obs_sub" />
+                        </LinearLayout>
+
+                        <com.synclab.airlens.ui.PillToggle
+                            android:id="@+id/settingsSyncOrientationWithObs"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/st_sync_orientation_obs" />
+                    </LinearLayout>
+                </LinearLayout>
+
                 <!-- ADVANCED -->
                 <TextView
                     style="@style/StSectionHeader"

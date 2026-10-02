@@ -72,6 +72,7 @@ class SettingsActivity : Activity() {
     private lateinit var hostError: TextView
     private lateinit var rowSrt: LinearLayout
     private lateinit var srtValue: TextView
+    private lateinit var syncOrientationToggle: PillToggle
 
     // ---- Views: advanced ----
     private lateinit var rowAdvancedHeader: LinearLayout
@@ -136,6 +137,7 @@ class SettingsActivity : Activity() {
         var obsPort: Int,
         var listenPort: Int,
         var latencyMs: Int,
+        var syncOrientationWithObs: Boolean,
         var advancedOpen: Boolean = false,
     )
 
@@ -181,6 +183,7 @@ class SettingsActivity : Activity() {
         outState.putInt(KEY_STATE_OBS_PORT, s.obsPort)
         outState.putInt(KEY_STATE_LISTEN_PORT, s.listenPort)
         outState.putInt(KEY_STATE_LATENCY, s.latencyMs)
+        outState.putBoolean(KEY_STATE_SYNC_ORIENTATION, s.syncOrientationWithObs)
         outState.putBoolean(KEY_STATE_ADVANCED, s.advancedOpen)
         outState.putBoolean(KEY_STATE_PENDING_RESTART, savedPendingRestart)
     }
@@ -231,6 +234,7 @@ class SettingsActivity : Activity() {
             obsPort = prefs.getInt(KEY_OBS_PORT, ConnectionTarget.DEFAULT_PORT),
             listenPort = prefs.getInt(KEY_LISTENING_PORT, ConnectionTarget.DEFAULT_PORT),
             latencyMs = config.latencyMs,
+            syncOrientationWithObs = prefs.getBoolean(KEY_SYNC_ORIENTATION_WITH_OBS, false),
         )
     }
 
@@ -255,6 +259,7 @@ class SettingsActivity : Activity() {
             obsPort = state.getInt(KEY_STATE_OBS_PORT),
             listenPort = state.getInt(KEY_STATE_LISTEN_PORT),
             latencyMs = state.getInt(KEY_STATE_LATENCY),
+            syncOrientationWithObs = state.getBoolean(KEY_STATE_SYNC_ORIENTATION),
             advancedOpen = state.getBoolean(KEY_STATE_ADVANCED),
         )
     }
@@ -332,6 +337,7 @@ class SettingsActivity : Activity() {
         hostError = findViewById(R.id.settingsHostError)
         rowSrt = findViewById(R.id.rowSrt)
         srtValue = findViewById(R.id.settingsSrtValue)
+        syncOrientationToggle = findViewById(R.id.settingsSyncOrientationWithObs)
         rowAdvancedHeader = findViewById(R.id.rowAdvancedHeader)
         advancedPreview = findViewById(R.id.settingsAdvancedPreview)
         advancedChevron = findViewById(R.id.settingsAdvancedChevron)
@@ -384,6 +390,9 @@ class SettingsActivity : Activity() {
         rowAudioDetail.setOnClickListener { openSheet(audioSheet()) }
         rowObsHost.setOnClickListener { openSheet(connectionSheet()) }
         rowSrt.setOnClickListener { openSheet(connectionSheet()) }
+        syncOrientationToggle.onCheckedChanged = { checked ->
+            if (!rendering) uiState.syncOrientationWithObs = checked
+        }
         rowAdvancedHeader.setOnClickListener {
             uiState.advancedOpen = !uiState.advancedOpen
             render()
@@ -654,6 +663,7 @@ class SettingsActivity : Activity() {
         hostError.visibility = if (bad) View.VISIBLE else View.GONE
         connectionCard.setBackgroundResource(if (bad) R.drawable.bg_st_card_error else R.drawable.bg_st_card)
         srtValue.text = getString(R.string.st_srt_summary, uiState.obsPort, uiState.latencyMs)
+        syncOrientationToggle.setCheckedSilently(uiState.syncOrientationWithObs)
     }
 
     private fun renderAdvanced() {
@@ -1429,6 +1439,7 @@ class SettingsActivity : Activity() {
             obsPort = ConnectionTarget.DEFAULT_PORT,
             listenPort = ConnectionTarget.DEFAULT_PORT,
             latencyMs = defaults.latencyMs,
+            syncOrientationWithObs = false,
         )
         render()
     }
@@ -1532,7 +1543,14 @@ class SettingsActivity : Activity() {
             audioBitrate = s.audioBitrateKbps
                 .coerceIn(StreamConfigStore.MIN_AUDIO_BITRATE_KBPS, StreamConfigStore.MAX_AUDIO_BITRATE_KBPS) * 1_000,
         )
-        return PendingSettings(config, s.lens, host, s.obsPort, s.listenPort)
+        return PendingSettings(
+            config = config,
+            lens = s.lens,
+            host = host,
+            port = s.obsPort,
+            listenPort = s.listenPort,
+            syncOrientationWithObs = s.syncOrientationWithObs,
+        )
     }
 
     private fun persistCurrent(pending: PendingSettings) {
@@ -1543,6 +1561,7 @@ class SettingsActivity : Activity() {
             .putInt(KEY_OBS_PORT, pending.port)
             .putInt(KEY_LISTENING_PORT, pending.listenPort)
             .putString(KEY_CAPABILITY_LENS, pending.lens?.name)
+            .putBoolean(KEY_SYNC_ORIENTATION_WITH_OBS, pending.syncOrientationWithObs)
             .apply()
     }
 
@@ -1589,6 +1608,7 @@ class SettingsActivity : Activity() {
         "obsPort" to uiState.obsPort,
         "listenPort" to uiState.listenPort,
         "latencyMs" to uiState.latencyMs,
+        "syncOrientationWithObs" to uiState.syncOrientationWithObs,
     )
 
     internal fun setHostForTest(host: String) {
@@ -1606,6 +1626,7 @@ class SettingsActivity : Activity() {
         val host: String,
         val port: Int,
         val listenPort: Int,
+        val syncOrientationWithObs: Boolean,
     )
 
     companion object {
@@ -1615,6 +1636,7 @@ class SettingsActivity : Activity() {
         const val KEY_LATENCY = StreamConfigStore.KEY_LATENCY
         const val KEY_LISTENING_PORT = "listening_port"
         const val KEY_CAPABILITY_LENS = "capability_lens"
+        const val KEY_SYNC_ORIENTATION_WITH_OBS = "sync_orientation_with_obs"
         const val EXTRA_CONNECT_AFTER_SAVE = "connect_after_save"
 
         private const val PROBE_BITRATE_BPS = 8_000_000
@@ -1639,6 +1661,7 @@ class SettingsActivity : Activity() {
         private const val KEY_STATE_OBS_PORT = "st_obs_port"
         private const val KEY_STATE_LISTEN_PORT = "st_listen_port"
         private const val KEY_STATE_LATENCY = "st_latency"
+        private const val KEY_STATE_SYNC_ORIENTATION = "st_sync_orientation"
         private const val KEY_STATE_ADVANCED = "st_advanced"
         private const val KEY_STATE_PENDING_RESTART = "st_pending_restart"
     }

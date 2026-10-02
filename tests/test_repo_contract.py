@@ -180,6 +180,25 @@ def test_auto_selected_obs_slot_sticks_to_same_phone_during_reconnect_hold() -> 
     assert "Waiting for previously connected Android phone" in source
 
 
+def test_orientation_sync_is_configurable_and_backward_compatible() -> None:
+    settings = read("android/app/src/main/java/com/synclab/airlens/SettingsActivity.kt")
+    app = read("android/app/src/main/java/com/synclab/airlens/MainActivity.kt")
+    orientation = read("android/app/src/main/java/com/synclab/airlens/camera/CameraOrientation.kt")
+    advertiser = read("android/app/src/main/java/com/synclab/airlens/discovery/PhoneDiscoveryAdvertiser.kt")
+    source = read("obs-plugin/src/openstream-source.cpp")
+    layout = read("android/app/src/main/res/layout/activity_settings.xml")
+
+    assert 'KEY_SYNC_ORIENTATION_WITH_OBS = "sync_orientation_with_obs"' in settings
+    assert "settingsSyncOrientationWithObs" in layout
+    assert "getBoolean(SettingsActivity.KEY_SYNC_ORIENTATION_WITH_OBS, false)" in app
+    assert "resolveObsCameraRotation" in orientation
+    assert '.put("rotation", sanitizeRotation(rotationProvider()))' in advertiser
+    assert "requestImmediateAdvertise" in advertiser
+    assert 'json_int_value(json, "rotation").value_or(0)' in source
+    assert "openstream_sanitize_async_rotation" in source
+    assert "obs_source_set_async_rotation" in source
+
+
 def test_android_discovery_ui_parses_and_displays_obs_slots() -> None:
     device = read("android/app/src/main/java/com/synclab/airlens/discovery/DiscoveredObsDevice.kt")
     discovery = read("android/app/src/main/java/com/synclab/airlens/discovery/ObsDiscoveryClient.kt")
