@@ -1,5 +1,6 @@
 """Google Play PNG contract and deterministic AirLens source checks."""
 
+from hashlib import sha256
 from pathlib import Path
 import sys
 
@@ -17,7 +18,7 @@ def test_play_store_icon_spec():
         assert image.format == "PNG"
         assert image.mode == "RGBA"  # 32-bit PNG with alpha channel.
         assert image.size == (512, 512)
-        assert image.info.get("icc_profile"), "Store icon must be tagged sRGB"
+        assert image.info.get("srgb") == 0, "Store icon must be tagged sRGB"
         assert image.getchannel("A").getextrema() == (255, 255)
         assert image.getpixel((0, 0))[3] == 255
         assert image.getpixel((511, 511))[3] == 255
@@ -30,4 +31,4 @@ def test_play_store_icon_matches_sources(tmp_path):
 
     generated = tmp_path / "airlens_store_icon_512.png"
     generate(output=generated)
-    assert generated.read_bytes() == ICON.read_bytes(), "Committed icon is stale; regenerate"
+    assert sha256(generated.read_bytes()).hexdigest() == sha256(ICON.read_bytes()).hexdigest(), "Committed icon is stale; regenerate"
