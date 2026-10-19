@@ -7,7 +7,7 @@ Requires Pillow. Does not modify Android launcher resources.
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageCms
+from PIL import Image, ImageCms, PngImagePlugin
 
 from generate_android_launcher_icons import emblem
 
@@ -50,8 +50,9 @@ def generate(background: Path = BACKGROUND, output: Path = OUTPUT) -> Path:
     base.alpha_composite(mark, (x, y))
     output.parent.mkdir(parents=True, exist_ok=True)
     # PNG remains 32-bit RGBA while every alpha pixel is opaque.
-    srgb_icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
-    base.save(output, format="PNG", optimize=True, icc_profile=srgb_icc)
+    png_info = PngImagePlugin.PngInfo()
+    png_info.add(b"sRGB", bytes([0]))
+    base.save(output, format="PNG", optimize=True, pnginfo=png_info)
     if output.stat().st_size > MAX_BYTES:
         raise ValueError(f"Store icon exceeds 1024 KiB: {output.stat().st_size} bytes")
     return output
