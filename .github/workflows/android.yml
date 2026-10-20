@@ -48,7 +48,7 @@ jobs:
 
       - name: Run repository tests
         run: |
-          python -m pip install --disable-pip-version-check pytest
+          python -m pip install --disable-pip-version-check pytest Pillow
           python -m pytest -q
 
       - name: Run Android unit tests and lint, then build app + instrumentation APKs
